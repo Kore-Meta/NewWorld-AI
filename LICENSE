@@ -1,0 +1,24 @@
+Copyright (c) 2026 Kore Meta. All rights reserved.
+
+NewWorld AI (this repository: its source code, scenes, 3D models, textures, audio, text and every other
+file in it, except the third-party components listed below) is the proprietary work of Kore Meta.
+
+No licence is granted to anyone by the publication of this repository. You may view it for the purpose
+of evaluating it as an entry to the Meta Global AI Developer Hackathon. You may not copy, modify, merge,
+publish, distribute, sublicense, sell, or create derivative works from any part of it, in whole or in
+part, without Kore Meta's prior written permission.
+
+The Hackathon's organizers hold the licence to the Submission that its Official Rules grant them, on the
+terms of those rules; nothing in this notice limits or adds to that licence.
+
+Third-party components keep their own licences, which apply to them instead of this notice:
+- Unity packages and samples (XR Interaction Toolkit, XR Hands, the Mixed Reality template assets,
+  TextMesh Pro): Unity Companion License.
+- Meta packages referenced in Packages/manifest.json (Voice SDK and OpenXR support): their Meta licences.
+- Fonts in Assets/StudyEverywhere/UI/Fonts: SIL Open Font License 1.1 (each with its licence file).
+- Public-domain images (NASA, Library of Congress): public domain.
+
+Licensed music, sound and Asset Store content used by the release build are not included in this
+repository (see README).
+
+To ask for permission: Kore Meta, https://koremeta.com
