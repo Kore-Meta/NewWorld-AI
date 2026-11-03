@@ -12,8 +12,9 @@ using UnityEngine.UI;
 
 namespace StudyEverywhere
 {
-    // Calypso, Seabreeze's companion: a warm, calm voice of the beach with no body, shown on a see-through card that drifts
-    // after the person's gaze. Speech-to-text runs on Wit.ai through Meta's Voice SDK (as Orbit); a sentence that names
+    // Calypso, Seabreeze's companion: a warm, calm voice of the beach whose form is a bubble of moving water (CalypsoOrb)
+    // with her see-through card under it, both just in front of the person and drifting after their gaze; the orb answers
+    // her voice as she talks and the person's as they speak. Speech-to-text runs on Wit.ai through Meta's Voice SDK (as Orbit); a sentence that names
     // Calypso, or anything said just after the card's Talk pill, goes with the beach's state to our relay (Tools/CatServer,
     // /pet/calypso/talk), where the AI chosen on the wrist menu answers and may act on the beach: hatch the turtles, set the
     // time of day or run the day's cycle, calm the waves or let them run, put the fire out or light it. The reply is spoken
@@ -34,13 +35,14 @@ namespace StudyEverywhere
         public SeaShore shore;
         public BeachCritters hatchlings;
         public Transform user;
-        [Header("The card")]
-        public Transform card;
+        [Header("Her form: the orb, and the card under it")]
+        [Tooltip("The orb and card together (the orb's centre, in the card's plane).")] public Transform card;
+        public CalypsoOrb orb;
         public CanvasGroup cardGroup;
         public TMP_Text status, heard, done, reply;
         public Button talk;
-        [Tooltip("Where the card floats: metres ahead, degrees to the side (negative: left), metres below the eyes.")]
-        public float cardDistance = .95f, cardYaw = -34, cardDrop = .14f;
+        [Tooltip("Where she floats: metres ahead (past the wrist menu, within reach), degrees to the side (negative: left), metres below the eyes.")]
+        public float cardDistance = .6f, cardYaw = 0, cardDrop = .05f;
         [Tooltip("Words that address Calypso.")] public string[] wakeWords = { "calypso", "calipso", "kalypso" };
         [Tooltip("After the Talk pill, the next sentence is for Calypso even without her name (seconds).")] public float askWindow = 8;
 
@@ -67,6 +69,7 @@ namespace StudyEverywhere
             voice.VoiceEvents.OnPartialTranscription.AddListener(OnPartial);
             voice.VoiceEvents.OnFullTranscription.AddListener(OnFull);
             voice.VoiceEvents.OnError.AddListener(OnError);
+            voice.VoiceEvents.OnMicLevelChanged.AddListener(OnMicLevel);
         }
         void OnDisable()
         {
@@ -76,6 +79,7 @@ namespace StudyEverywhere
             voice.VoiceEvents.OnPartialTranscription.RemoveListener(OnPartial);
             voice.VoiceEvents.OnFullTranscription.RemoveListener(OnFull);
             voice.VoiceEvents.OnError.RemoveListener(OnError);
+            voice.VoiceEvents.OnMicLevelChanged.RemoveListener(OnMicLevel);
             busy = false;
         }
 
@@ -92,8 +96,10 @@ namespace StudyEverywhere
         void Update()
         {
             if (card && user) PlaceCard(false);
-            // the card is clear while Calypso is quiet, and comes up when she is listening, thinking or talking
-            if (cardGroup) cardGroup.alpha = Mathf.MoveTowards(cardGroup.alpha, Time.time - lastActive < 12 ? 1 : .62f, Time.deltaTime * 1.5f);
+            if (orb) orb.thinking = busy && !(speaker && speaker.IsActive);
+            // her captions come up while she is listening, thinking or talking, and fade away once she has been quiet a while
+            // (Nov 3 review: no card; her name stays in her orb)
+            if (cardGroup) cardGroup.alpha = Mathf.MoveTowards(cardGroup.alpha, Time.time - lastActive < 12 ? 1 : 0, Time.deltaTime * 1.5f);
             if (!Configured) return;
             if (busy) { if (Time.time - busySince > 60) { Debug.LogWarning("Calypso: a reply took too long; listening again."); busy = false; Idle(); } return; }
             if (speaker && speaker.IsActive) { if (voice.IsRequestActive) voice.Deactivate(); requestSince = -1; return; }   // never hear herself
@@ -107,11 +113,16 @@ namespace StudyEverywhere
             if (Time.time >= retryAt) voice.Activate();   // she is the whole beach's voice: always in earshot
         }
 
-        // The card drifts after the person's gaze, staying a little below and to one side of it, never in front of the view:
-        // it only moves once the head has turned well away from it, and then glides round.
+        // Her form drifts after the person's gaze, just in front of them and a little below the eyes, beyond where the wrist
+        // menu opens (0.5 m) so the menu comes up in front of her without the two passing through each other, and near
+        // enough to touch the card: it only moves once the head has turned well away from it, and then glides round. While
+        // the wrist menu is open she holds still, so she never drifts into it.
         Vector3 cardTarget; bool cardMoving;
+        WristPanel menu; bool menuLooked;
         void PlaceCard(bool snap)
         {
+            if (!menuLooked) { menu = FindAnyObjectByType<WristPanel>(); menuLooked = true; }
+            if (!snap && menu && menu.IsOpen) { cardMoving = false; return; }
             var f = Vector3.ProjectOnPlane(user.forward, Vector3.up); if (f.sqrMagnitude < 1e-4f) f = Vector3.forward;
             var want = user.position + Quaternion.Euler(0, cardYaw, 0) * f.normalized * cardDistance + Vector3.down * cardDrop;
             var toCard = Vector3.ProjectOnPlane(card.position - user.position, Vector3.up);
@@ -161,7 +172,8 @@ namespace StudyEverywhere
             return false;
         }
 
-        void OnPartial(string text) { if (!busy && Addressed(text)) Show(Localization.Tr("Listening…"), "“" + text + "”"); }
+        void OnPartial(string text) { if (!busy && Addressed(text)) { if (orb) orb.Addressed(); Show(Localization.Tr("Listening…"), "“" + text + "”"); } }
+        void OnMicLevel(float level) { if (orb && !(speaker && speaker.IsActive)) orb.Heard(level); }
         void OnError(string error, string message) { Debug.LogWarning($"Calypso: {error} {message}"); retryAt = Time.time + 2; }
         void OnFull(string text)
         {
