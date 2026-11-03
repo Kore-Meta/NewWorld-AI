@@ -32,7 +32,7 @@ namespace StudyEverywhere.EditorTools
 
             Directory.CreateDirectory("Builds");
             EditorUserBuildSettings.buildAppBundle = false;
-            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = Scenes, locationPathName = "Builds/NewWorld-AI.apk", target = BuildTarget.Android, targetGroup = BuildTargetGroup.Android, options = BuildOptions.None });
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = Scenes, locationPathName = "Builds/NewWorld-AI.apk", target = BuildTarget.Android, targetGroup = BuildTargetGroup.Android, options = BuildOptions.CleanBuildCache });   // clean: the Library came from the full New World, whose cached player data held every place
             var size = File.Exists(report.summary.outputPath) ? new FileInfo(report.summary.outputPath).Length / 1048576f : 0;
             Debug.Log($"NewWorld AI: Quest APK build {report.summary.result}, {size:F0} MB ({report.summary.outputPath}), {report.summary.totalErrors} errors.");
             if (Application.isBatchMode && report.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded) EditorApplication.Exit(1);

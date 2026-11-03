@@ -111,7 +111,8 @@ async function talk(cat, text, state, lang, now, provider) {
     c.messages.push({ role: "assistant", content: message.content });
     usage.input += message.usage.input_tokens; usage.cached += message.usage.cache_read_input_tokens ?? 0; usage.output += message.usage.output_tokens;
     const said = message.content.filter(b => b.type === "text").map(b => b.text).join("");
-    reply = `${reply} ${said}`.replace(/\s+/g, " ").replace(/ ([,.!?;:])/g, "$1").trim();
+    // (Muse sometimes echoes the context tag the message starts with: never spoken)
+    reply = `${reply} ${said.replace(/^s*[(deck|beach|café|cafe)]s*/i, "")}`.replace(/\s+/g, " ").replace(/ ([,.!?;:])/g, "$1").trim();
     const calls = message.content.filter(b => b.type === "tool_use");
     actions.push(...calls.map(b => orbitCommand(b.name, b.input)));
     c.pendingToolIds = calls.map(b => b.id);
@@ -243,7 +244,8 @@ async function petTalk(id, session, text, state, now, history, provider) {
     c.messages.push({ role: "assistant", content: message.content });
     usage.input += message.usage.input_tokens; usage.cached += message.usage.cache_read_input_tokens ?? 0; usage.output += message.usage.output_tokens;
     const said = message.content.filter(b => b.type === "text").map(b => b.text).join("");
-    reply = `${reply} ${said}`.replace(/\s+/g, " ").replace(/ ([,.!?;:])/g, "$1").trim();
+    // (Muse sometimes echoes the context tag the message starts with: never spoken)
+    reply = `${reply} ${said.replace(/^s*[(deck|beach|café|cafe)]s*/i, "")}`.replace(/\s+/g, " ").replace(/ ([,.!?;:])/g, "$1").trim();
     const calls = message.content.filter(b => b.type === "tool_use");
     actions.push(...calls.map(b => PETS[id].command ? PETS[id].command(b.name, b.input ?? {}) : b.input?.place ? `${b.name} ${b.input.place}` : b.name));
     c.pendingToolIds = calls.map(b => b.id);
