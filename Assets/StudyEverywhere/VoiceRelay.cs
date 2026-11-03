@@ -59,6 +59,30 @@ namespace StudyEverywhere
             request.SetRequestHeader("X-AI-Provider", AIProvider.Id);   // the wrist menu's AI choice
         }
 
+        // The relay on Render's free plan sleeps after a quiet quarter hour, and the first reply then took 15-20 s (Nov 3
+        // review: Hori's "come to me"). So each place wakes it as it loads, before anyone speaks, and every ten minutes while
+        // the app is open: a bare GET /health, with no token, no session and nothing anyone said.
+        const float WakeEvery = 600;
+        static float lastWake = -WakeEvery;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        static void WakeOnLoad()
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += (s, m) => Wake(true);
+            var keeper = new GameObject("Relay wake (every ten minutes)") { hideFlags = HideFlags.HideAndDontSave };
+            UnityEngine.Object.DontDestroyOnLoad(keeper);
+            keeper.AddComponent<Waker>();
+            Wake(true);
+        }
+        public static void Wake(bool now = false)
+        {
+            var url = Url();
+            if (string.IsNullOrEmpty(url) || (!now && Time.realtimeSinceStartup - lastWake < WakeEvery)) return;
+            lastWake = Time.realtimeSinceStartup;
+            var req = UnityWebRequest.Get(url + "/health"); req.timeout = 90;
+            req.SendWebRequest().completed += _ => req.Dispose();
+        }
+        sealed class Waker : MonoBehaviour { void Update() => Wake(); }
+
         // For lines that contain what someone said or what a character replied: compiled out of release builds.
         [Conditional("UNITY_EDITOR"), Conditional("DEVELOPMENT_BUILD")]
         public static void Transcript(string line) => Debug.Log(line);

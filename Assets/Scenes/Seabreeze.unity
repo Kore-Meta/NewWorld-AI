@@ -627,7 +627,7 @@ Transform:
   m_GameObject: {fileID: 49805001}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -0.48723435, y: 0.2236208, z: 3.419445}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -9212,7 +9212,7 @@ Transform:
   m_GameObject: {fileID: 528101773}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.12186935, z: 0, w: 0.99254614}
-  m_LocalPosition: {x: -2.2761126, y: 0.475238, z: -10.634323}
+  m_LocalPosition: {x: -2.763347, y: 0.6988588, z: -7.214878}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -11775,7 +11775,7 @@ Transform:
   m_GameObject: {fileID: 619634536}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -0.48723435, y: 0.2236208, z: 3.419445}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -18084,7 +18084,7 @@ Canvas:
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
   m_UseReflectionProbes: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 45
@@ -18704,7 +18704,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4285247707
   m_fontColor: {r: 0.86, g: 0.69, b: 0.42, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -18717,7 +18717,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -18741,7 +18741,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -22429,7 +22429,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4285247707
   m_fontColor: {r: 0.86, g: 0.69, b: 0.42, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -22442,12 +22442,12 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 168
+  m_fontSize: 152
   m_fontSizeBase: 168
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -26198,7 +26198,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4285247707
   m_fontColor: {r: 0.86, g: 0.69, b: 0.42, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -26211,7 +26211,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -26235,7 +26235,7 @@ MonoBehaviour:
   m_charWidthMaxAdj: 0
   m_TextWrappingMode: 0
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 1
+  m_overflowMode: 3
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -28089,7 +28089,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4285247707
   m_fontColor: {r: 0.86, g: 0.69, b: 0.42, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -28102,7 +28102,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -32258,7 +32258,7 @@ AudioLowPassFilter:
   m_GameObject: {fileID: 1615384313}
   m_Enabled: 1
   serializedVersion: 3
-  m_LowpassResonanceQ: 0.8
+  m_LowpassResonanceQ: 1
   lowpassLevelCustomCurve:
     serializedVersion: 2
     m_Curve:

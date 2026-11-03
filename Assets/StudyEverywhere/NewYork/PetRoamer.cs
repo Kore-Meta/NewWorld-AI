@@ -86,9 +86,22 @@ namespace StudyEverywhere
             if (!viewer) return;
             var f = viewer.forward; f.y = 0; f = f.sqrMagnitude > 1e-4f ? f.normalized : Vector3.forward;
             var r = Vector3.Cross(Vector3.up, f); var foot = viewer.position; foot.y = homeStep.y;
-            var at = foot + r * personGap;
+            var chest = Vector3.up * chestHeight;
+            // free floor the person can see from where they are (not through a wall, a table or a screen)
+            bool Free(Vector3 p) => !Physics.CheckSphere(p + chest, bodyRadius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+                && !Physics.Linecast(foot + chest, p + chest, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
+            var at = foot + r * personGap; bool found = false;
             foreach (var c in new[] { r * personGap + f * .1f, -r * personGap + f * .1f, -f * personGap, f * personGap })
-                if (!Physics.CheckSphere(foot + c + Vector3.up * chestHeight, bodyRadius, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) { at = foot + c; break; }
+                if (Free(foot + c)) { at = foot + c; found = true; break; }
+            // seated at a table, every spot right beside the person can be under the table or a cushion, and the pet walked
+            // at the table and stopped there (Nov 3 review: Hori said she was coming and stayed by the table): the nearest
+            // free floor round them instead, ring by ring out to about 1.6 m, the sides before the front and back
+            for (int ring = 1; !found && ring <= 4; ring++)
+                foreach (float deg in new[] { 90f, -90f, 60f, -60f, 120f, -120f, 30f, -30f, 150f, -150f, 0f, 180f })
+                {
+                    var p = foot + Quaternion.AngleAxis(deg, Vector3.up) * f * (personGap + ring * .3f);
+                    if (Free(p)) { at = p; found = true; break; }
+                }
             var face = foot - at; face.y = 0;
             Go(Route(at, Quaternion.LookRotation(face.sqrMagnitude > 1e-4f ? face : f).eulerAngles.y, "by you", trot));
         }
