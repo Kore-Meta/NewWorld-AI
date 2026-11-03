@@ -48,14 +48,32 @@ namespace StudyEverywhere
         [Header("Voice-first (Nov 3 design review): the orb is the interface")]
         [Tooltip("Show her words as captions beside her orb. Off: voice only. They always show when she can't speak the language.")]
         public bool captions;
-        [Tooltip("Spoken phrases that flow out of her orb (added at start if empty).")] public CalypsoCues cues;
-        [Tooltip("Her droplets leading the eye to what she changed (added at start if empty).")] public CalypsoGuide guide;
-        [Tooltip("Seconds the orb shows Acting after she changes the beach.")] public float actingFor = 2.5f;
+        [Tooltip("Icons and spoken phrases that flow out of her orb (added at start if empty).")] public CalypsoCues cues;
+        [Tooltip("Her droplets leading the eye (added at start if empty).")] public CalypsoGuide guide;
+        [Tooltip("The ring round her orb while she acts (added at start if empty).")] public CalypsoRing ring;
+        [Tooltip("Seconds she shows Acting for each change to the beach (she stays quiet meanwhile).")] public float actingFor = 2.2f;
+        [Tooltip("After she echoes a request with several actions back, seconds the person has to say “wait”.")] public float waitWindow = 2.5f;
+        [Tooltip("Seconds she drifts aside after pointing at something, so it isn't behind her.")] public float asideFor = 8;
+        [Tooltip("Degrees further out she drifts when aside, and when docked at rest.")] public float asideYaw = 22, dockYaw = 14;
+        [Tooltip("Seconds of quiet before she docks small at the edge of view (0: never).")] public float dockAfter = 25;
+        [Tooltip("Her size when docked, against her full size.")] [Range(.3f, 1)] public float dockScale = .6f;
+        [Tooltip("Seconds she takes to appear when the place opens.")] public float arriveFor = 1.6f;
+        [Range(0, 1)] public float chimeVolume = .45f, shimmerVolume = .12f;
 
         bool busy;
         float retryAt, busySince, requestSince = -1, askedAt = -100, lastActive = -100, actingUntil = -1;
         const string MetKey = "Calypso.met";
         static readonly Regex AsksAbilities = new Regex(@"\bwhat (else )?can you do\b|\bwhat do you do\b|\bwhat can i (say|ask)\b|\bhelp\b", RegexOptions.IgnoreCase);
+        static readonly Regex WaitWords = new Regex(@"\b(wait|stop|hold on|cancel|never ?mind|no)\b", RegexOptions.IgnoreCase);
+        static readonly Regex UndoWords = new Regex(@"\b(change|put|turn|set) it back\b|\bundo\b|\bback (to )?(how|the way) it was\b", RegexOptions.IgnoreCase);
+
+        // the voice-first extras: sounds, the "wait" window, undo, her place (aside, docked) and her arrival
+        AudioSource sfx, hum;
+        float waitUntil = -1, chimedAt = -100, asideUntil = -1, aside, dock, arrive = 1;
+        bool waitHeard;
+        Vector3 baseScale = Vector3.one;
+        struct Snapshot { public bool valid, onlyHatch; public TimeOfDay.Preset preset; public bool lamps, calm; }
+        Snapshot before;
         readonly List<(string role, string text)> history = new List<(string, string)>();
 
         void Awake()
@@ -97,6 +115,8 @@ namespace StudyEverywhere
             Idle();
             if (card && user) PlaceCard(true);
             AddCuesAndGuide();
+            AddSounds();
+            if (card) { baseScale = card.localScale; StartCoroutine(Arrive()); }
             StartCoroutine(Greet());
             Debug.Log($"Calypso: voice {(Configured ? "configured" : "NOT configured (no Wit configuration)")}, relay {(string.IsNullOrEmpty(VoiceRelay.Url(serverUrl)) ? "not set" : "set")}.");
         }
@@ -113,6 +133,13 @@ namespace StudyEverywhere
                 orb.mood = Time.time < actingUntil ? CalypsoOrb.Mood.Acting : busy && !talking ? CalypsoOrb.Mood.Thinking : CalypsoOrb.Mood.Idle;
             }
             if (cues) cues.quiet = busy || talking || Time.time - lastActive < 4;
+            // thinking has its faint shimmer; acting has the world's own sounds; speaking is her voice
+            if (hum) hum.volume = Mathf.MoveTowards(hum.volume, orb && orb.Shown == CalypsoOrb.Mood.Thinking ? shimmerVolume : 0, Time.deltaTime * .4f);
+            // her place: aside for a while after pointing at something, docked small at the edge of view when long quiet
+            aside = Mathf.MoveTowards(aside, Time.time < asideUntil ? 1 : 0, Time.deltaTime * .8f);
+            bool resting = dockAfter > 0 && !busy && !talking && Time.time - lastActive > dockAfter;
+            dock = Mathf.MoveTowards(dock, resting ? 1 : 0, Time.deltaTime * (resting ? .35f : 1.5f));
+            if (card) card.localScale = baseScale * (arrive * Mathf.Lerp(1, dockScale, dock));
             // voice first: her captions come up only when asked for (or when she can't speak the language), while she is
             // listening, thinking or talking, and fade away once she has been quiet a while. Her name stays in her orb.
             bool showCaptions = captions || Localization.Current != 0;
@@ -134,16 +161,19 @@ namespace StudyEverywhere
         // menu opens (0.5 m) so the menu comes up in front of her without the two passing through each other, and near
         // enough to touch the card: it only moves once the head has turned well away from it, and then glides round. While
         // the wrist menu is open she holds still, so she never drifts into it.
-        Vector3 cardTarget; bool cardMoving;
+        Vector3 cardTarget; bool cardMoving; float placedOutward;
         WristPanel menu; bool menuLooked;
         void PlaceCard(bool snap)
         {
             if (!menuLooked) { menu = FindAnyObjectByType<WristPanel>(); menuLooked = true; }
             if (!snap && menu && menu.IsOpen) { cardMoving = false; return; }
             var f = Vector3.ProjectOnPlane(user.forward, Vector3.up); if (f.sqrMagnitude < 1e-4f) f = Vector3.forward;
-            var want = user.position + Quaternion.Euler(0, cardYaw, 0) * f.normalized * cardDistance + Vector3.down * cardDrop;
+            // aside after pointing, and docked at rest, she moves further out on her own side, out of the way
+            float outward = (cardYaw >= 0 ? 1 : -1) * Mathf.Max(aside * asideYaw, dock * dockYaw);
+            float yaw = cardYaw + outward;
+            var want = user.position + Quaternion.Euler(0, yaw, 0) * f.normalized * cardDistance + Vector3.down * cardDrop;
             var toCard = Vector3.ProjectOnPlane(card.position - user.position, Vector3.up);
-            if (snap || Vector3.Angle(toCard, Quaternion.Euler(0, cardYaw, 0) * f) > 32 || Mathf.Abs(card.position.y - want.y) > .25f) cardMoving = true;
+            if (snap || Mathf.Abs(outward - placedOutward) > 2 || Vector3.Angle(toCard, Quaternion.Euler(0, yaw, 0) * f) > 32 || Mathf.Abs(card.position.y - want.y) > .25f) { cardMoving = true; placedOutward = outward; }
             if (cardMoving) cardTarget = want;
             card.position = snap ? want : Vector3.Lerp(card.position, cardTarget, Time.deltaTime * 3);
             if (cardMoving && Vector3.Distance(card.position, cardTarget) < .01f) cardMoving = false;
@@ -169,39 +199,85 @@ namespace StudyEverywhere
             if (!Configured) { Show(Localization.Tr("Calypso's microphone isn't set up yet.")); return; }
             if (speaker && speaker.IsActive) speaker.Stop();
             askedAt = Time.time;
+            Chime();
             Show(Localization.Tr("Listening…"), "", "");
             if (!voice.IsRequestActive) voice.Activate();
             StartCoroutine(GiveUp());
         }
+        // Nothing came: the grey head tilt and a short "Sorry?".
         IEnumerator GiveUp()
         {
             float at = askedAt;
             yield return new WaitForSeconds(askWindow);
-            if (!busy && askedAt == at) { askedAt = -100; if (orb) orb.Unsure(); Show(Localization.Tr("I didn't catch that. Say “Calypso”, then what you'd like.")); }
+            if (!busy && askedAt == at)
+            {
+                askedAt = -100;
+                if (orb) orb.Unsure();
+                Show(Localization.Tr("I didn't catch that. Say “Calypso”, then what you'd like."));
+                yield return Speak(Localization.Tr("Sorry?"));
+            }
         }
 
-        // Her cues and her guide sit beside her orb; scenes built before them get them here, so no scene change is needed.
+        // ---- the voice-first extras (Nov 3 design board, frames 01 to 08)
+
+        // Her cues, guide and ring sit beside her orb; scenes built before them get them here, so no scene change is needed.
         void AddCuesAndGuide()
         {
             if (!orb) return;
             var host = card ? card.gameObject : orb.gameObject;
+            if (!guide)
+            {
+                guide = host.GetComponent<CalypsoGuide>();   // (not ??: Unity's missing components aren't C# null)
+                if (!guide) guide = host.AddComponent<CalypsoGuide>();
+                guide.from = orb.transform; guide.template = orb.droplets;
+            }
             if (!cues)
             {
-                cues = host.GetComponent<CalypsoCues>();   // (not ??: Unity's missing components aren't C# null)
+                cues = host.GetComponent<CalypsoCues>();
                 if (!cues) cues = host.AddComponent<CalypsoCues>();
                 cues.from = orb.transform;
                 var any = reply ? reply : heard;   // her captions' font (Plus Jakarta Sans), as the rest of New World
                 if (any) cues.font = any.font;
             }
-            if (!guide)
+            if (!cues.guide) cues.guide = guide;
+            if (!ring)
             {
-                guide = host.GetComponent<CalypsoGuide>();
-                if (!guide) guide = host.AddComponent<CalypsoGuide>();
-                guide.from = orb.transform; guide.template = orb.droplets;
+                ring = host.GetComponent<CalypsoRing>();
+                if (!ring) ring = host.AddComponent<CalypsoRing>();
+                ring.from = orb.transform; ring.radius = orb.radius;
             }
         }
 
-        // The first time someone comes to Seabreeze she says hello and her abilities flow out of her as she names them.
+        // Her two small sounds, from her orb: the chime when she hears her name, the shimmer while she thinks.
+        void AddSounds()
+        {
+            if (!orb) return;
+            sfx = orb.gameObject.AddComponent<AudioSource>(); Spatial(sfx);
+            hum = orb.gameObject.AddComponent<AudioSource>(); Spatial(hum);
+            hum.clip = CalypsoSounds.Shimmer; hum.loop = true; hum.volume = 0; hum.Play();
+        }
+        static void Spatial(AudioSource s)
+        {
+            s.playOnAwake = false; s.spatialBlend = 1; s.dopplerLevel = 0;
+            s.rolloffMode = AudioRolloffMode.Linear; s.minDistance = .3f; s.maxDistance = 6;
+        }
+        void Chime()
+        {
+            if (sfx && Time.time - chimedAt > 4) sfx.PlayOneShot(CalypsoSounds.Chime, chimeVolume);
+            chimedAt = Time.time;   // one chime per sentence, however many partial transcripts it brings
+        }
+
+        // 01: she grows into view when the place opens.
+        IEnumerator Arrive()
+        {
+            arrive = .01f;
+            yield return new WaitForSeconds(.4f);
+            for (float t = 0; t < 1; t += Time.deltaTime / Mathf.Max(.01f, arriveFor)) { arrive = Mathf.SmoothStep(.01f, 1, t); yield return null; }
+            arrive = 1;
+        }
+
+        // 01 and 02: the first time someone comes to Seabreeze she says hello, and her abilities flow out of her as she
+        // names them, each previewed in the world for a moment.
         IEnumerator Greet()
         {
             if (PlayerPrefs.GetInt(MetKey, 0) == 1) yield break;
@@ -210,18 +286,90 @@ namespace StudyEverywhere
             PlayerPrefs.SetInt(MetKey, 1); PlayerPrefs.Save();
             var hello = Localization.Tr("Hi, I'm Calypso, the voice of this beach. Say my name, then what you'd like. I can change the time of day, hatch the turtles, calm the waves or put out the fire.");
             Show(IdleLine, "", "", hello);
-            if (cues) cues.ShowAbilities(3.2f);
+            if (cues) cues.ShowAbilities(3.2f, 1.1f, 5, Preview);
             yield return Speak(hello);
             lastActive = Time.time;
         }
 
-        // Where to lead the eye after an action, if anywhere: the nest, when the hatchlings come out.
-        void Guide(string action)
+        // 02: the world previews an ability as she names it: the sky warms, the waves still, the nest and the fire glow.
+        static readonly Color Warm = new Color(1f, .84f, .6f, .9f);
+        int changes;   // counts real changes, so a preview never undoes one made meanwhile
+        void Preview(int i)
         {
-            if (!guide || !hatchlings || string.IsNullOrEmpty(action)) return;
-            if (!action.Trim().ToLowerInvariant().StartsWith("hatch") || hatchlings.homes == null || hatchlings.homes.Length == 0) return;
-            var nest = hatchlings.homes[0];
-            guide.Point(SeabreezeBeach.OnSand(nest.x, nest.z));
+            var action = CalypsoCues.AbilityActions[i];
+            var at = Target(action);
+            if (action.StartsWith("hatch") || action.StartsWith("fire")) { if (guide && at.HasValue) guide.Pulse(at.Value, 1.8f); }
+            else if (action.StartsWith("waves")) { if (shore && !shore.Calm) StartCoroutine(StillWaves(1.8f)); }
+            else if (action.StartsWith("time") && time && time.preset != TimeOfDay.Preset.Sunset && time.preset != TimeOfDay.Preset.Automatic) StartCoroutine(WarmSky(1.8f));
+            else if (guide && orb && at.HasValue) guide.Thread(orb.transform.position, at.Value, 1.2f, Warm);   // toward the sun
+        }
+        IEnumerator StillWaves(float seconds)
+        {
+            int c = changes; shore.Calm = true;
+            yield return new WaitForSeconds(seconds);
+            if (changes == c && shore) shore.Calm = false;
+        }
+        IEnumerator WarmSky(float seconds)
+        {
+            // the preset eases in over the sky's transition time, so a short preview is a warming, not a jump
+            int c = changes; var was = time.preset; time.SetPreset(TimeOfDay.Preset.Sunset);
+            yield return new WaitForSeconds(seconds);
+            if (changes == c && time) time.SetPreset(was);
+        }
+
+        // Where an action happens: the nest, the sun, the waterline in front of her, the fire bowl.
+        Vector3? Target(string action)
+        {
+            var a = (action ?? "").Trim().ToLowerInvariant();
+            var o = orb ? orb.transform.position : card ? card.position : transform.position;
+            if (a.StartsWith("hatch"))
+            {
+                if (!hatchlings || hatchlings.homes == null || hatchlings.homes.Length == 0) return null;
+                var n = hatchlings.homes[0]; return SeabreezeBeach.OnSand(n.x, n.z);
+            }
+            if (a.StartsWith("time") || a.StartsWith("cycle")) return time && time.sun ? o - time.sun.transform.forward * 3 : o + Vector3.up * 2.5f;
+            if (a.StartsWith("waves")) return SeabreezeBeach.OnSand(o.x, SeabreezeBeach.Shore(o.x));
+            if (a.StartsWith("fire")) { var bowl = FindAnyObjectByType<FireBowl>(); return bowl ? bowl.transform.position + Vector3.up * .3f : (Vector3?)null; }
+            return null;
+        }
+
+        // 04: a request with several actions, said back in order ("Sunset, then the turtles.").
+        static string EchoLine(List<string> todo)
+        {
+            var parts = new List<string>();
+            foreach (var t in todo)
+            {
+                var a = t.Trim().ToLowerInvariant().Split(' ');
+                bool on = a.Length < 2 || a[1] != "off";
+                switch (a[0])
+                {
+                    case "time": parts.Add(a.Length > 1 ? a[1] : "the time"); break;
+                    case "cycle": parts.Add(on ? "the day cycle" : "pausing the day"); break;
+                    case "hatch": parts.Add("the turtles"); break;
+                    case "waves": parts.Add(on ? "the waves back" : "calm waves"); break;
+                    case "fire": parts.Add(on ? "the fire" : "the fire out"); break;
+                }
+            }
+            var s = string.Join(", then ", parts) + ".";
+            return Localization.Tr(char.ToUpperInvariant(s[0]) + s.Substring(1));
+        }
+
+        // 06: what she can put back. Hatchlings can't be called back.
+        Snapshot Take(List<string> todo) => new Snapshot
+        {
+            valid = true, onlyHatch = todo.TrueForAll(a => a.Trim().ToLowerInvariant().StartsWith("hatch")),
+            preset = time ? time.preset : TimeOfDay.Preset.Afternoon, lamps = time && time.LampsOn, calm = shore && shore.Calm,
+        };
+        string Undo()
+        {
+            if (!before.valid) return null;
+            var was = before; before.valid = false;
+            if (was.onlyHatch) return Localization.Tr("The little ones are already on their way to the sea. I can't call them back.");
+            changes++;
+            actingUntil = Time.time + actingFor; if (ring) ring.Run(actingFor);
+            if (time) { time.SetPreset(was.preset); time.LampsOn = was.lamps; }
+            if (shore) shore.Calm = was.calm;
+            return Localization.Tr("There, back as it was.");
         }
 
         bool Addressed(string text)
@@ -233,11 +381,24 @@ namespace StudyEverywhere
             return false;
         }
 
-        void OnPartial(string text) { if (!busy && Addressed(text)) { if (orb) orb.Addressed(); Show(Localization.Tr("Listening…"), "“" + text + "”"); } }
+        // While the "wait" window is open, anything heard only counts as "wait" (or not).
+        bool InWaitWindow(string text)
+        {
+            if (Time.time >= waitUntil) return false;
+            if (!string.IsNullOrEmpty(text) && WaitWords.IsMatch(text)) waitHeard = true;
+            return true;
+        }
+
+        void OnPartial(string text)
+        {
+            if (InWaitWindow(text)) return;
+            if (!busy && Addressed(text)) { if (orb) orb.Addressed(); Chime(); Show(Localization.Tr("Listening…"), "“" + text + "”"); }
+        }
         void OnMicLevel(float level) { if (orb && !(speaker && speaker.IsActive)) orb.Heard(level); }
         void OnError(string error, string message) { Debug.LogWarning($"Calypso: {error} {message}"); retryAt = Time.time + 2; }
         void OnFull(string text)
         {
+            if (InWaitWindow(text)) return;
             if (string.IsNullOrWhiteSpace(text) || busy || !Addressed(text)) return;
             askedAt = -100;
             StartCoroutine(Converse(text));
@@ -251,6 +412,21 @@ namespace StudyEverywhere
                 if (voice && voice.IsRequestActive) voice.Deactivate();
                 Show(Localization.Tr("Thinking…"), "“" + text + "”", "", "");
                 VoiceRelay.Transcript($"Calypso heard \"{text}\"");
+
+                // 06: "change it back" is hers to do, straight away
+                if (UndoWords.IsMatch(text))
+                {
+                    var back = Undo();
+                    if (back != null)
+                    {
+                        history.Add(("user", text)); history.Add(("assistant", back));
+                        Show(IdleLine, null, "", back);
+                        yield return new WaitForSeconds(Time.time < actingUntil ? actingFor : 0);
+                        yield return Speak(back);
+                        yield break;
+                    }
+                }
+
                 string answer = null; string[] actions = null;
                 var url = VoiceRelay.Url(serverUrl);
                 if (!string.IsNullOrEmpty(url))
@@ -270,10 +446,55 @@ namespace StudyEverywhere
                     else if (sending != null) Debug.LogWarning($"Calypso relay: {req.responseCode} {req.error}");
                 }
                 if (string.IsNullOrEmpty(answer) && (actions == null || actions.Length == 0)) (answer, actions) = Offline(text);
-                var labels = new List<string>();
-                if (actions != null) foreach (var a in actions) { var l = Act(a); if (!string.IsNullOrEmpty(l)) { labels.Add(l); Guide(a); } }
-                if (labels.Count > 0) { actingUntil = Time.time + actingFor; CalypsoCues.MarkUsed(); }
-                if (cues && AsksAbilities.IsMatch(text)) cues.ShowAbilities(1.2f);
+
+                var todo = new List<string>();
+                if (actions != null) foreach (var a in actions) if (CalypsoCues.Look(a, out _, out _)) todo.Add(a);
+
+                // 04: several actions are echoed back in order, with a moment to say "wait"; one goes straight ahead
+                CalypsoCues.Handle[] steps = null;
+                waitHeard = false;
+                if (todo.Count >= 2)
+                {
+                    if (cues) steps = cues.ShowSteps(todo);
+                    yield return Speak(EchoLine(todo));
+                    waitUntil = Time.time + waitWindow;
+                    if (Configured && !voice.IsRequestActive) voice.Activate();
+                    while (Time.time < waitUntil && !waitHeard) yield return null;
+                    waitUntil = -1;
+                    if (voice && voice.IsRequestActive) voice.Deactivate();
+                }
+
+                // 05: one change at a time: amber, the ring filling, a thread of light toward it, the next step waiting
+                // dimly; she stays quiet, the beach changing is the confirmation
+                var labels = new List<string>(); Vector3? lookAt = null;
+                if (waitHeard) answer = Localization.Tr("Okay, I'll wait. Just ask when you're ready.");
+                else if (todo.Count > 0)
+                {
+                    before = Take(todo);
+                    for (int i = 0; i < todo.Count; i++)
+                    {
+                        if (steps != null) for (int j = 0; j < steps.Length; j++) { steps[j].SetLevel(j == i ? 1 : j < i ? .3f : .45f); if (j == i) steps[j].Pop(); }
+                        actingUntil = Time.time + actingFor;
+                        if (ring) ring.Run(actingFor);
+                        var at = Target(todo[i]);
+                        if (guide && orb && at.HasValue) guide.Thread(orb.transform.position, at.Value, actingFor, Warm);
+                        var l = Act(todo[i]); if (!string.IsNullOrEmpty(l)) labels.Add(l);
+                        if (todo[i].Trim().ToLowerInvariant().StartsWith("hatch") && at.HasValue) lookAt = at;
+                        yield return new WaitForSeconds(actingFor);
+                    }
+                }
+                if (steps != null) foreach (var s in steps) s.Release();
+                if (labels.Count > 0) CalypsoCues.MarkUsed();
+
+                // 06: she drifts aside and leads the eye to what could be missed, and says where to look
+                if (lookAt.HasValue)
+                {
+                    asideUntil = Time.time + asideFor;
+                    if (guide) guide.Point(lookAt.Value, asideFor * .75f);
+                    if (string.IsNullOrEmpty(answer) || answer.IndexOf("nest", StringComparison.OrdinalIgnoreCase) < 0)
+                        answer = (string.IsNullOrEmpty(answer) ? "" : answer + " ") + Localization.Tr("Look down by the nest.");
+                }
+                if (cues && AsksAbilities.IsMatch(text)) cues.ShowAbilities(1.2f, 1.1f, 5, Preview);
                 if (string.IsNullOrEmpty(answer)) answer = labels.Count > 0 ? Localization.Tr("There you go.") : Localization.Tr("Mm, I'm here.");
                 history.Add(("user", text)); history.Add(("assistant", answer));
                 while (history.Count > 12) history.RemoveAt(0);
@@ -281,7 +502,7 @@ namespace StudyEverywhere
                 Show(IdleLine, null, string.Join("   ·   ", labels), answer);
                 yield return Speak(answer);
             }
-            finally { busy = false; Idle(); lastActive = Time.time; }
+            finally { busy = false; waitUntil = -1; Idle(); lastActive = Time.time; }
         }
 
         IEnumerator Speak(string text)
@@ -319,6 +540,7 @@ namespace StudyEverywhere
         // One action from the relay (or from Offline), done on the beach; returns what the card shows for it.
         public string Act(string action)
         {
+            changes++;
             var a = (action ?? "").Trim().ToLowerInvariant().Split(' ');
             bool On() => a.Length < 2 || a[1] != "off";
             switch (a[0])
