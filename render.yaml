@@ -1,0 +1,20 @@
+# NewWorld AI's relay on Render (render.com): New > Blueprint, pick this repository.
+# Render serves it over HTTPS at https://<name>.onrender.com and sets PORT itself.
+# After the first deploy, open the service's Environment tab: paste the Muse key into MUSE_API_KEY, and copy the
+# generated CAT_APP_TOKEN into Assets/StudyEverywhere/Resources/VoiceRelay.json (appToken) before building the APK.
+services:
+  - type: web
+    name: newworld-ai-relay
+    runtime: node
+    plan: free            # sleeps after 15 minutes idle (the first reply after that takes up to a minute); "starter" stays awake
+    rootDir: Tools/CatServer
+    buildCommand: npm install
+    startCommand: node server.mjs
+    healthCheckPath: /health
+    envVars:
+      - key: MUSE_API_KEY
+        sync: false       # asked for in the dashboard, never stored in the repository
+      - key: CAT_APP_TOKEN
+        generateValue: true
+      - key: MUSE_MODEL
+        value: muse-spark-1.3

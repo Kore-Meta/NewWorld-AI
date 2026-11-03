@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Orbit Sky
+  m_Shader: {fileID: 4800000, guid: 9c3ab7a804d86ee44862c3f48d6eb50c, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Mask:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Ripples:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SkyA:
+        m_Texture: {fileID: 8900000, guid: 3fcb6dab78e66104cbfa160011231a9b, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SkyB:
+        m_Texture: {fileID: 8900000, guid: 046df7de00848d740986ee2ae21e54a5, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _BakedMirror: 0
+    - _Blend: 0
+    - _Exposure: 1
+    - _MirrorShift: 0.05
+    - _Night: 0
+    - _RippleFar: 0.015
+    - _RippleScale: 0.12
+    - _RippleStrength: 0.35
+    - _WaterLevel: -6.7
+    - _WaterOn: 0
+    m_Colors:
+    - _Glitter: {r: 1.6, g: 1.5680001, b: 1.52, a: 1.6}
+    - _SunDir: {r: 0.034136962, g: 0.2079117, b: -0.97755176, a: 0}
+    - _WaterTint: {r: 0.015, g: 0.04, b: 0.059999965, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

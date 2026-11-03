@@ -1,0 +1,12 @@
+{
+  "name": "newworld-ai-relay",
+  "private": true,
+  "type": "module",
+  "description": "Relay between New World's AI characters (Orbit, Calypso, the pets, the cats, the composers) and Meta's Muse Model API. Holds the API key; the headset never sees it.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

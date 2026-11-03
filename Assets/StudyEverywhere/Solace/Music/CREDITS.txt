@@ -1,0 +1,22 @@
+# Credits for Solace's recordings, shown small under the track name in Solace's menu and on the desk's music panel,
+# and all together on the menu's Music credits card (the "i" beside MUSIC, or on the desk panel).
+# One line per recording: the file name without its extension, a bar, then the credit, for example
+#   Bach - Goldberg Variations - Aria | Kimiko Ishizaka · Open Goldberg · CC0
+# Every recording here is public domain or CC0, so none strictly needs a line; they are credited as a courtesy
+# (Musopen asks for one). Sources and licences: README.md. Rebuild Solace (New World > Build Solace Library) after editing.
+Bach - Goldberg Variations - Aria | Kimiko Ishizaka · Open Goldberg · CC0
+Chopin - Nocturne in A-flat, Op. 32 No. 2 | Olga Gurevich · Musopen · Public domain
+Mozart - Sonata K. 333 - II. Andante cantabile | Musopen · Public domain
+Schumann - Träumerei, Op. 15 No. 7 | Musopen · Public domain
+Beethoven - Moonlight Sonata - I. Adagio sostenuto | Paul Pitman · Musopen · Public domain
+Schubert - Sonata D. 664 - II. Andante | Paul Pitman · Musopen · Public domain
+Bach - Prelude in E-flat minor, BWV 853 | Musopen · Public domain
+Brahms - Intermezzo in A, Op. 118 No. 2 | Musopen · Public domain
+Chopin - Raindrop Prelude, Op. 28 No. 15 | Musopen · CC0
+Haydn - Lark Quartet - II. Adagio cantabile | Musopen String Quartet · Public domain
+Beethoven - Sonata Op. 110 - I. Moderato cantabile | Musopen · Public domain
+Mozart - Quartet K. 465 - II. Andante cantabile | Musopen String Quartet · Public domain
+Schubert - Sonata D. 960 - II. Andante sostenuto | David H. Porter · Musopen · Public domain
+Grieg - Piano Concerto - II. Adagio | Musopen · Public domain
+Bach - Goldberg Variations - Aria da capo | Kimiko Ishizaka · Open Goldberg · CC0
+Morning Counterpoint | Original · Kore Meta · made with Suno

@@ -1,0 +1,13 @@
+# Credits for the garden's recordings, shown small under the track name in the garden's music menu.
+# One line per recording: the file name without its extension, a bar, then the credit, for example
+#   Chopin - Nocturne Op9 No2 | Performed by <performer> · <source> · CC BY 4.0
+# Public-domain recordings need no line. Rebuild the garden (New World > Build Solace Garden) after editing.
+# Public-domain recordings from Musopen (via Wikimedia Commons); credited as a courtesy.
+Chopin - Nocturne Op9 No2 | Frank Lévy, piano · Musopen · Public domain
+Chopin - Nocturne Op27 No2 | Frank Lévy, piano · Musopen · Public domain
+Chopin - Nocturne Op48 No1 | Luke Faulkner, piano · Musopen · Public domain
+Chopin - Nocturne Op9 No1 | Olga Gurevich, piano · Musopen · Public domain
+Chopin - Nocturne in C sharp minor | Frank Lévy, piano · Musopen · Public domain
+Rachmaninoff - Concerto 2 - I. Moderato | Musopen · Public domain
+Rachmaninoff - Concerto 2 - II. Adagio sostenuto | Musopen · Public domain
+Rachmaninoff - Concerto 2 - III. Allegro scherzando | Musopen · Public domain
