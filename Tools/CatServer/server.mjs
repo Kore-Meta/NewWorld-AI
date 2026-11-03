@@ -58,7 +58,7 @@ How to talk:
 - The hologram models are built by the app from the makers' published dimensions, not from their engineering CAD, so they are faithful in proportion and layout rather than in every detail; say so if asked how accurate they are.
 - Be encouraging and unhurried: this is a place to study. Offer a next thing to look at only when it fits.
 
-The deck: use the tools when the person asks to see something or when it helps your answer (talking about Hubble's mirror: show Hubble, open the parts, point at the primary mirror). Speak as well as act. Each message starts with a [deck] line saying what the deck shows now.
+The deck: use the tools when the person asks to see something or when it helps your answer (talking about Hubble's mirror: show Hubble, open the parts, point at the primary mirror). Speak as well as act. Each message starts with a [deck] line saying what the deck shows now; it is for you only: never say it or repeat it.
 
 # Fact sheet: the four spacecraft on the deck
 ${craftSheet()}
@@ -78,6 +78,14 @@ const ORBIT_TOOLS = CRAFT.length ? [
 const orbitCommand = (name, input) => name === "show_craft" ? `show_craft ${input.craft}` : name === "show_parts" ? "parts" : name === "focus_part" ? `focus_part ${input.part}` : name === "power" ? `power ${input.on ? "on" : "off"}` : name;
 
 const conversations = new Map(); // "orbit", or a pet and session -> { messages, tools, pendingToolIds, turns, last, provider }
+// Muse sometimes begins a reply with the context the relay put before the person's words: the tag ("[deck]") and a copy
+// of the state line. Neither is ever said aloud.
+const unecho = (said, state) => {
+  let t = said.replace(/^\s*\[(deck|beach|café|cafe)\]\s*/i, "");
+  const st = (state || "").trim();
+  if (st && t.trimStart().startsWith(st)) t = t.trimStart().slice(st.length);
+  return t;
+};
 const serverNow = () => new Date().toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" });
 
 // Orbit's reply to one sentence: her words and the deck's actions.
@@ -112,7 +120,7 @@ async function talk(cat, text, state, lang, now, provider) {
     usage.input += message.usage.input_tokens; usage.cached += message.usage.cache_read_input_tokens ?? 0; usage.output += message.usage.output_tokens;
     const said = message.content.filter(b => b.type === "text").map(b => b.text).join("");
     // (Muse sometimes echoes the context tag the message starts with: never spoken)
-    reply = `${reply} ${said.replace(/^s*[(deck|beach|café|cafe)]s*/i, "")}`.replace(/\s+/g, " ").replace(/ ([,.!?;:])/g, "$1").trim();
+    reply = `${reply} ${unecho(said, state)}`.replace(/\s+/g, " ").replace(/ ([,.!?;:])/g, "$1").trim();
     const calls = message.content.filter(b => b.type === "tool_use");
     actions.push(...calls.map(b => orbitCommand(b.name, b.input)));
     c.pendingToolIds = calls.map(b => b.id);
@@ -184,7 +192,7 @@ How to talk:
 - Never claim to see or do things you can't; you only know what the [beach] line tells you.
 
 You can change the beach with the tools, and should whenever the person asks: hatch the turtles (any time of day), set the time of day (morning, afternoon, sunset or night), start or pause the day's cycle (the clock running through a whole day in about half an hour), calm the waves or let them run again, put the fire out or light it. When you act, say so warmly in a few words and say how the beach is now (the sun going down, the water going still, the little turtles digging out). If something is already as asked, say so kindly rather than doing it again. Offer a change now and then only when it fits the conversation, never every turn.
-Each message starts with a [beach] line giving the person's local date and time and describing the beach right now.`,
+Each message starts with a [beach] line giving the person's local date and time and describing the beach right now; it is for you only: never say it or repeat it.`,
   tools: [
     tool("hatch_turtles", "Bring a clutch of green turtle hatchlings out of their nest now, whatever the hour: they dig out one after another and row down the beach into the lagoon."),
     tool("set_time", "Set the time of day on the beach (the sky, sun and light ease into it over a few seconds); this holds the clock there, stopping the day's cycle.", { time: { type: "string", enum: TIMES } }, ["time"]),
@@ -205,7 +213,7 @@ You are talking out loud, in person, inside the café. Your words appear in a sp
 - Never ask for personal details. Decline politely anything harmful, hateful, sexual or dangerous, and never give medical, legal or financial advice.
 
 You can act with the tools: use them when it fits what you say or what you were asked (${PETS[id].acting}). Speak as well as act; acting alone is fine only for ${PETS[id].wordless}.
-Each message starts with a [café] line giving the person's local date and time and describing what you are doing right now.`;
+Each message starts with a [café] line giving the person's local date and time and describing what you are doing right now; it is for you only: never say it or repeat it.`;
 const petTools = id => PETS[id].tools;
 const PET_PER_MINUTE = 12;
 const busyPet = new Set(), petRate = new Map();
@@ -245,7 +253,7 @@ async function petTalk(id, session, text, state, now, history, provider) {
     usage.input += message.usage.input_tokens; usage.cached += message.usage.cache_read_input_tokens ?? 0; usage.output += message.usage.output_tokens;
     const said = message.content.filter(b => b.type === "text").map(b => b.text).join("");
     // (Muse sometimes echoes the context tag the message starts with: never spoken)
-    reply = `${reply} ${said.replace(/^s*[(deck|beach|café|cafe)]s*/i, "")}`.replace(/\s+/g, " ").replace(/ ([,.!?;:])/g, "$1").trim();
+    reply = `${reply} ${unecho(said, state)}`.replace(/\s+/g, " ").replace(/ ([,.!?;:])/g, "$1").trim();
     const calls = message.content.filter(b => b.type === "tool_use");
     actions.push(...calls.map(b => PETS[id].command ? PETS[id].command(b.name, b.input ?? {}) : b.input?.place ? `${b.name} ${b.input.place}` : b.name));
     c.pendingToolIds = calls.map(b => b.id);

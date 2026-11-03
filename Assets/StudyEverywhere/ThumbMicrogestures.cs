@@ -45,6 +45,10 @@ namespace StudyEverywhere
 
         [Tooltip("Two round arrow buttons on the thumb side of each index finger, near the tip and near the knuckle: press one with the thumb to turn that way. On, they replace the invisible taps.")]
         public bool fingerButtons = true;
+        // NewWorld AI (Nov 3 review, item 41: snap turn was on both hands; the user: the right hand turns, the left moves).
+        // Off: the left hand never turns, neither its finger buttons and thumb taps nor its controller's thumbstick.
+        [Tooltip("The left hand turns too (its finger buttons and taps, and its controller's thumbstick). Off: only the right hand turns; the left moves.")]
+        public bool leftHandTurn;
         [Tooltip("Button size across, and how far out from the middle of the finger it sits (metres).")] public float buttonSize = .015f, buttonOut = .0105f;
         [Tooltip("The thumb pad within this of a button's centre presses it; it must then move this far off before the next press (metres).")]
         public float pressRadius = .014f, pressRelease = .026f;
@@ -69,6 +73,14 @@ namespace StudyEverywhere
             var modality = origin ? origin.GetComponentInChildren<XRInputModalityManager>(true) : null;
             leftGuard.Bind(modality, Handedness.Left);
             rightGuard.Bind(modality, Handedness.Right);
+            if (!leftHandTurn && origin)
+            {
+                // the controllers: the left thumbstick moves, it no longer turns too
+                foreach (var t in origin.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.SnapTurnProvider>(true))
+                    t.leftHandTurnInput.inputSourceMode = UnityEngine.XR.Interaction.Toolkit.Inputs.Readers.XRInputValueReader.InputSourceMode.Unused;
+                foreach (var t in origin.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.ContinuousTurnProvider>(true))
+                    t.leftHandTurnInput.inputSourceMode = UnityEngine.XR.Interaction.Toolkit.Inputs.Readers.XRInputValueReader.InputSourceMode.Unused;
+            }
             ResetInput();
         }
 
@@ -97,11 +109,15 @@ namespace StudyEverywhere
             bool aiming = false;
             if (hands != null)
             {
-                if (fingerButtons) { Buttons(hands.leftHand, Handedness.Left, left, leftGuard); Buttons(hands.rightHand, Handedness.Right, right, rightGuard); }
+                if (fingerButtons)
+                {
+                    if (leftHandTurn) Buttons(hands.leftHand, Handedness.Left, left, leftGuard); else left.buttons?.Hide();
+                    Buttons(hands.rightHand, Handedness.Right, right, rightGuard);
+                }
                 else { left.buttons?.Hide(); right.buttons?.Hide(); }
                 // the older joint gestures, only when one of them is on
                 if (tapTeleport || swipeGlide || swipeTurn || (tapTurn && !fingerButtons))
-                { aiming |= Read(hands.leftHand, left, leftGuard); aiming |= Read(hands.rightHand, right, rightGuard); }
+                { if (leftHandTurn) aiming |= Read(hands.leftHand, left, leftGuard); aiming |= Read(hands.rightHand, right, rightGuard); }
             }
             else ResetInput();
             if (target)
