@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace StudyEverywhere
 {
-    // The rest areas' words: Seabreeze's places and rows, the sky's clouds and moon, and Calypso's card.
+    // The rest areas' words: the Starry Meadow's places, cloud row and moon (NightSky's phase and motion names), and Seabreeze's places and rows.
     public static partial class Localization
     {
         static partial void AddRest(Dictionary<string, string[]> t)
@@ -18,7 +18,7 @@ namespace StudyEverywhere
             A("There you go.", "여기 있어요.", "どうぞ。", "Listo.", "Voilà.");
             A("Mm, I'm here.", "음, 저 여기 있어요.", "うん、ここにいるよ。", "Mm, aquí estoy.", "Mm, je suis là.");
             A("There you go. I'll be here if you need anything else.", "다 됐어요. 더 필요한 게 있으면 말해 주세요.", "できました。ほかに何かあれば言ってね。", "Listo. Aquí estaré si necesitas algo más.", "Voilà. Je suis là si vous avez besoin d'autre chose.");
-            A("I can't reach my thoughts right now, but I can still hatch the turtles, change the time, calm the waves or put out the fire.", "지금은 생각이 잘 안 닿지만, 거북이 부화, 시간 바꾸기, 파도 잠재우기, 불 끄기는 할 수 있어요.", "今はうまく考えられないけれど、カメのふ化、時間の変更、波を静める、火を消すことはできます。", "Ahora no puedo pensar bien, pero aún puedo hacer que nazcan las tortugas, cambiar la hora, calmar las olas o apagar el fuego.", "Je n'arrive pas à réfléchir pour l'instant, mais je peux faire éclore les tortues, changer l'heure, calmer les vagues ou éteindre le feu.");
+            A("My connection is resting right now, so I can't chat, but I can still change the time, hatch the turtles, calm the waves or put out the fire.", "지금은 연결이 쉬고 있어서 대화는 못 하지만, 시간 바꾸기, 거북이 부화, 파도 잠재우기, 불 끄기는 할 수 있어요.", "今は接続が休んでいてお話はできないけれど、時間の変更、カメのふ化、波を静める、火を消すことはできます。", "Ahora mi conexión está descansando y no puedo charlar, pero aún puedo cambiar la hora, hacer que nazcan las tortugas, calmar las olas o apagar el fuego.", "Ma connexion se repose pour l'instant, je ne peux pas discuter, mais je peux changer l'heure, faire éclore les tortues, calmer les vagues ou éteindre le feu.");
             A("Turtles hatching", "거북이 부화 중", "カメがふ化中", "Tortugas naciendo", "Les tortues éclosent");
             A("Day cycle on", "하루 순환 켜짐", "一日のサイクル オン", "Ciclo del día activado", "Cycle du jour activé");
             A("Day cycle paused", "하루 순환 멈춤", "一日のサイクル 一時停止", "Ciclo del día en pausa", "Cycle du jour en pause");

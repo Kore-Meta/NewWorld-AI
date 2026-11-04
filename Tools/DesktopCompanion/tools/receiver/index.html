@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; media-src blob: mediastream:">
+<title>Fake headset receiver</title>
+<style>
+  body { margin: 0; background: #1d2424; color: #f6f1e7; font: 13px/1.4 system-ui, sans-serif; }
+  #grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; }
+  figure { margin: 0; width: calc(50% - 5px); }
+  video { width: 100%; background: #000; border-radius: 6px; display: block; }
+  figcaption { padding: 4px 2px; color: #b08a4a; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script src="receiver.js"></script>
+</body>
+</html>

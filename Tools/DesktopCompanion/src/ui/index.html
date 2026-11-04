@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+<title>New World Desktop</title>
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+<header class="brand">
+  <span class="brand-mark" aria-hidden="true"></span>
+  <span class="brand-name">KORE META <span class="dot">·</span> New World</span>
+  <span class="brand-sub">Desktop</span>
+</header>
+
+<div id="error" class="banner banner-error" hidden></div>
+
+<main>
+  <!-- Idle -->
+  <section id="screen-idle" class="screen">
+    <div class="halo" aria-hidden="true"><div class="halo-ring"></div><div class="halo-ring r2"></div><div class="halo-core"></div></div>
+    <h1>Open New World on your Quest and choose <em>Connect a computer</em></h1>
+    <p class="lead">This computer will ask you for the code shown in the headset before anything is shared.</p>
+    <div id="notice" class="banner banner-quiet" hidden>
+      <span id="notice-text"></span>
+      <button id="notice-close" class="link" aria-label="Dismiss">Dismiss</button>
+    </div>
+    <label class="switch-row">
+      <input type="checkbox" id="discoverable">
+      <span class="switch" aria-hidden="true"></span>
+      <span>
+        <strong>Let headsets find <span id="computer-name"></span></strong>
+        <small>Only on this Wi-Fi network.</small>
+      </span>
+    </label>
+    <label class="switch-row">
+      <input type="checkbox" id="smooth-motion">
+      <span class="switch" aria-hidden="true"></span>
+      <span>
+        <strong>Smoother motion (60 fps)</strong>
+        <small>Costs headset battery and frame rate. Off sends 30 fps, which suits text and documents.</small>
+      </span>
+    </label>
+  </section>
+
+  <!-- A headset wants to connect: the code -->
+  <section id="screen-code" class="screen" hidden>
+    <p class="eyebrow">A headset wants to connect</p>
+    <h1><span class="device-name"></span></h1>
+    <p class="lead">Enter the code shown in the headset.</p>
+    <form id="code-form" autocomplete="off">
+      <div class="code" id="code-boxes">
+        <input inputmode="numeric" maxlength="1" aria-label="Digit 1"><input inputmode="numeric" maxlength="1" aria-label="Digit 2"><input inputmode="numeric" maxlength="1" aria-label="Digit 3"><span class="code-gap"></span><input inputmode="numeric" maxlength="1" aria-label="Digit 4"><input inputmode="numeric" maxlength="1" aria-label="Digit 5"><input inputmode="numeric" maxlength="1" aria-label="Digit 6">
+      </div>
+      <p id="code-error" class="field-error" role="alert" hidden></p>
+      <div class="actions">
+        <button type="submit" class="primary" id="code-submit" disabled>Continue</button>
+        <button type="button" class="quiet" id="code-decline">Not now</button>
+      </div>
+    </form>
+    <p class="fine">Didn't ask to connect? Choose <strong>Not now</strong>. Nothing about this computer is sent until the code matches.</p>
+  </section>
+
+  <!-- Approve: choose displays -->
+  <section id="screen-approve" class="screen" hidden>
+    <p class="eyebrow">Code accepted</p>
+    <h1>Share with <span class="device-name"></span>?</h1>
+    <p class="lead">Choose the displays to show in the headset.</p>
+    <svg id="map" class="map" role="img" aria-label="Layout of your displays"></svg>
+    <ul id="display-list" class="checklist"></ul>
+    <div class="actions">
+      <button class="primary" id="approve-share">Share</button>
+      <button class="quiet" id="approve-decline">Decline</button>
+    </div>
+    <p class="fine">The picture goes straight to the headset over your Wi-Fi, encrypted. It never goes through the internet and nothing is recorded.</p>
+  </section>
+
+  <!-- Sharing -->
+  <section id="screen-sharing" class="screen" hidden>
+    <div class="live">
+      <span class="live-dot" aria-hidden="true"></span>
+      <span id="live-text"></span>
+    </div>
+    <p id="connection-text" class="lead"></p>
+    <ul id="shared-list" class="shared"></ul>
+    <button class="stop" id="stop-sharing">Stop sharing</button>
+    <p class="fine">You can also stop from the New World icon in the taskbar tray.</p>
+  </section>
+</main>
+
+<!-- A monitor attached mid-session -->
+<div id="prompt" class="sheet-backdrop" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="prompt-title">
+    <p class="eyebrow">A display was connected</p>
+    <h2 id="prompt-title"></h2>
+    <p id="prompt-body" class="lead"></p>
+    <div class="actions">
+      <button class="primary" id="prompt-yes">Share it</button>
+      <button class="quiet" id="prompt-no">Not now</button>
+    </div>
+  </div>
+</div>
+
+<script src="ui.js"></script>
+</body>
+</html>

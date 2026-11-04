@@ -10,11 +10,11 @@ namespace StudyEverywhere
     // In-headset side of connecting a Windows computer, with every display it shares (product direction 05).
     // Not paired: the source chooser. "Connect a computer" asks the IScreenSource for a short-lived code. Awaiting
     // approval: the user enters it in the desktop app, approves capture and picks the displays. Connecting: the streams
-    // are set up. Connected: the main display fills this panel's well and each other display gets its own panel, placed
-    // where that monitor stands relative to the main one and curved around the seat. A display whose stream stops
-    // delivering frames is marked paused on its own panel at once (never left looking live) and the connection reads
-    // Reconnecting; if every display stays silent it gives up to Disconnected, with Retry. Sharing can be stopped here
-    // (all displays, or one from its panel) or on the computer.
+    // are set up. Connected: this card folds away and every display stands round the seat as a curved screen at its
+    // real size (ScreenSurface), arranged the way the monitors stand on the desk, the user's − / + making them all
+    // bigger or smaller together. A display whose stream stops delivering frames is marked paused on its own screen at
+    // once (never left looking live) and the connection reads Reconnecting; if every display stays silent it gives up
+    // to Disconnected, with Retry. Sharing can be stopped here (all displays, or one from its strip) or on the computer.
     public sealed class WorkspaceConnection : MonoBehaviour
     {
         public enum State { NotPaired, AwaitingApproval, Connecting, Connected, Reconnecting, Disconnected }
@@ -25,16 +25,16 @@ namespace StudyEverywhere
         public int DisplayCount => displays.Count;
         public event Action<State> StateChanged;
 
-        [Tooltip("Component implementing IScreenSource (SimulatedScreenSource until the real transport exists).")]
+        [Tooltip("Component implementing IScreenSource. On the headset the real WebRtcScreenSource is added at runtime in its place.")]
         public MonoBehaviour source;
+        [Tooltip("Keep the simulated source in the Editor (no PC needed); untick to pair with the New World Desktop app from Play mode.")]
+        public bool simulateInEditor = true;
         [Tooltip("Seconds without a new frame before a display is marked paused.")]
         public float staleAfter = 1f;
         [Tooltip("Seconds without a frame from any display before giving up.")]
         public float giveUpAfter = 15f;
         [Tooltip("Seconds to wait for the streams after approval.")]
         public float connectTimeout = 20f;
-        [Tooltip("Space between neighbouring display panels, in metres.")]
-        public float panelGap = 0.04f;
 
         [Header("Panel")]
         public TMP_Text eyebrow, subtitle;
@@ -57,18 +57,40 @@ namespace StudyEverywhere
         public GameObject stream, controls;
         public DisplayView mainView;
         public Button stopSharing;
-        [Header("Other displays: inactive templates cloned per display, chosen by aspect")]
+        [Header("Former per-display panels (unused since displays became curved screens; kept for the scene builders)")]
         public DisplayPanel landscapeTemplate;
         public DisplayPanel ultrawideTemplate, portraitTemplate;
+
+        [Header("Shared screens")]
+        [Tooltip("Distance from the seat to the screens at true size, metres (about a desk's depth).")]
+        public float screenDistance = 0.8f;
+        [Tooltip("Gap between neighbouring screens, metres (about two bezels).")]
+        public float screenGap = 0.015f;
 
         sealed class Shown
         {
             public SharedDisplay info;
-            public DisplayPanel panel;   // null for the main display, which is drawn in this panel's well
+            public ScreenSurface surface;   // the display drawn round the seat at its real proportions
             public float lastFrame;
             public bool live = true;
-            public string where;   // where its panel stands relative to the main display (English, for Detail)
         }
+
+        // The user's screen size (100% by default), kept between sessions and places. 100% is 2.6 times the monitor's
+        // true size: true size reads small in the headset, and testing on real 34" ultrawides settled on this as the
+        // size that feels like the real monitor. Smaller and Bigger step from there.
+        const string ScreenSizeKey = "NewWorld.ScreenSize";
+        const float DefaultScale = 2.6f;
+        static float ScreenSize
+        {
+            get => Mathf.Clamp(PlayerPrefs.GetFloat(ScreenSizeKey, 1f), 0.4f, 1.6f);
+            set { PlayerPrefs.SetFloat(ScreenSizeKey, Mathf.Clamp(value, 0.4f, 1.6f)); PlayerPrefs.Save(); }
+        }
+        static float ScreenScale => DefaultScale * ScreenSize;
+        ScreenControls bar;
+        PanelWindow window;
+        bool foldedForSharing, pivotSet, faceGaze;
+        Vector3 pivot;
+        float pivotYaw;
 
         IScreenSource screen;
         State state;
@@ -88,7 +110,16 @@ namespace StudyEverywhere
 
         void Awake()
         {
+            // The scenes are built with the simulated source; everywhere but the Editor (unless asked) the real one
+            // streams from the New World Desktop app instead. It is one for the whole app, so sharing carries on into
+            // the next place that has a workspace.
+            if (source is SimulatedScreenSource simulated && !(Application.isEditor && simulateInEditor))
+            {
+                simulated.enabled = false;
+                source = WebRtcScreenSource.Shared;
+            }
             screen = source as IScreenSource;
+            window = GetComponent<PanelWindow>();
             if (screen == null) Debug.LogError("[WorkspaceConnection] The source does not implement IScreenSource.", this);
             if (ComingSoon) ShowComingSoon();
         }
@@ -126,13 +157,30 @@ namespace StudyEverywhere
             stopSharing.onClick.AddListener(StopSharing);
             Localization.Changed += OnLanguage;
             Enter(State.NotPaired);
+            // Arriving from another place while sharing: take the screens over once the player stands at the seat.
+            if (screen is WebRtcScreenSource shared)
+            {
+                shared.Claim(this);
+                if (shared.IsSharing) Invoke(nameof(TakeOver), 1f);
+            }
+        }
+
+        void TakeOver()
+        {
+            if (!(screen is WebRtcScreenSource shared) || !shared.IsSharing || state != State.NotPaired) return;
+            Enter(State.Connecting);
+            foreach (var d in shared.ShownDisplays.ToList()) OnDisplayAdded(d);
         }
 
         void OnDisable()
         {
+            CancelInvoke(nameof(TakeOver));
             if (screen != null)
             {
-                if (state != State.NotPaired && state != State.Disconnected) screen.Stop();
+                // Leaving the place: the shared source lets the next place's workspace take the screens over (and stops
+                // by itself if none does); any other source stops here.
+                if (screen is WebRtcScreenSource shared) shared.Release(this);
+                else if (state != State.NotPaired && state != State.Disconnected) screen.Stop();
                 screen.CodeIssued -= OnCode;
                 screen.Approved -= OnApproved;
                 screen.DisplayAdded -= OnDisplayAdded;
@@ -185,47 +233,81 @@ namespace StudyEverywhere
 
         void OnApproved() => Enter(State.Connecting);
 
-        // The primary display takes the main panel; every other display opens a panel of its own.
+        // Every display becomes a screen of its own round the seat; the primary one is the main screen, in front.
         void OnDisplayAdded(SharedDisplay d)
         {
             if (state != State.Connecting && state != State.Connected && state != State.Reconnecting) return;
+            if (displays.TryGetValue(d.id, out var old)) Close(old);
             var shown = new Shown { info = d, lastFrame = Time.time };
             displays[d.id] = shown;
-            if (mainId == 0 || d.primary && !displays[mainId].info.primary)
-            {
-                if (mainId != 0) OpenPanel(displays[mainId]);
-                mainId = d.id;
-                mainView.Show(d.texture);
-                mainView.Mark(true);
-            }
-            else OpenPanel(shown);
+            shown.surface = ScreenSurface.Create(d.name, d.texture);
+            if (mainId == 0 || d.primary && !displays[mainId].info.primary) mainId = d.id;
+            if (!bar) bar = ScreenControls.Create(BarStyle(), () => Resize(-0.1f), () => Resize(0.1f), BringToMe, StopSharing, StopDisplay);
             if (state == State.Connecting) Enter(State.Connected);
             else Summarize();
             Arrange();
         }
 
-        // A display stopped (here or on the computer): close its panel; if it was the main display, the next one moves in.
+        // A display stopped (here or on the computer): its screen goes; if it was the main one, the next one moves in.
         void Remove(int id)
         {
             if (!displays.TryGetValue(id, out var gone)) return;
-            ClosePanel(gone);
+            Close(gone);
             displays.Remove(id);
             if (id == mainId)
             {
-                mainId = 0;
-                mainView.Clear();
                 var next = displays.Values.OrderByDescending(s => s.info.primary).ThenBy(s => s.info.layout.x).FirstOrDefault();
-                if (next != null)
-                {
-                    ClosePanel(next);
-                    mainId = next.info.id;
-                    mainView.Show(next.info.texture);
-                    mainView.Mark(next.live);
-                }
+                mainId = next?.info.id ?? 0;
             }
             if (displays.Count == 0) { OnEnded("Your computer is no longer sharing any displays."); return; }
             Summarize();
             Arrange();
+        }
+
+        // Smaller and Bigger step the size by 10% of the default.
+        void Resize(float step)
+        {
+            ScreenSize = Mathf.Round((ScreenSize + step) * 10) / 10;
+            Arrange();
+        }
+
+        // The screens (and the bar) come round to face wherever the user now sits and looks.
+        void BringToMe()
+        {
+            pivotSet = false;
+            faceGaze = true;
+            Arrange();
+        }
+
+        // The workspace card's own styled pieces, cloned into the control bar so it matches the place's menus.
+        ScreenControls.Style BarStyle() => new ScreenControls.Style
+        {
+            card = Named("Card") ? Named("Card") : well,
+            trim = Named("Brass trim") ? Named("Brass trim") : well,
+            dot = mainView.liveDot,
+            label = eyebrow,
+            pill = stopSharing,
+            raycaster = GetComponents<Component>().FirstOrDefault(c => c.GetType().Name == "TrackedDeviceGraphicRaycaster")?.GetType(),
+        };
+
+        Image Named(string name) => GetComponentsInChildren<Image>(true).FirstOrDefault(i => i.name == name);
+
+        // The bar's top line and display chips, in the current language.
+        void RefreshBar()
+        {
+            if (!bar) return;
+            int n = displays.Count;
+            bool allLive = displays.Values.All(d => d.live);
+            bar.SetSummary((n > 1 ? Localization.Format("Sharing {0} displays", n) : Localization.Tr("Sharing your screen")).ToUpperInvariant()
+                + " · " + Localization.Tr(allLive ? "LIVE" : "PAUSED"), allLive);
+            bar.SetSize(ScreenSize * 100);
+            bar.SetDisplays(displays.Values.OrderBy(d => d.info.layout.x).Select(d => (d.info.id, d.info.name, d.live)).ToList());
+        }
+
+        static void Close(Shown s)
+        {
+            if (s.surface) Destroy(s.surface.gameObject);
+            s.surface = null;
         }
 
         void OnFrame(int id)
@@ -262,11 +344,18 @@ namespace StudyEverywhere
                     {
                         float quiet = Time.time - d.lastFrame;
                         bool live = quiet <= staleAfter;
-                        if (live != d.live) { d.live = live; View(d).Mark(live); }
-                        if (live) View(d).Pulse(Time.time);
+                        if (live != d.live)
+                        {
+                            d.live = live;
+                            d.surface.Mark(live);
+                            if (d.info.id == mainId) mainView.Mark(live);
+                            RefreshBar();
+                        }
+                        if (live && d.info.id == mainId) mainView.Pulse(Time.time);
                         anyPaused |= !live;
                         allGone &= quiet > giveUpAfter;
                     }
+                    if (bar && !anyPaused) bar.Pulse(Time.time);
                     if (allGone) { screen.Stop(); OnEnded("The streams stopped. Check the computer is awake and on the same Wi-Fi."); break; }
                     var want = anyPaused ? State.Reconnecting : State.Connected;
                     if (want != state) Enter(want);
@@ -274,20 +363,26 @@ namespace StudyEverywhere
             }
         }
 
-        DisplayView View(Shown s) => s.panel ? s.panel.view : mainView;
-
         void Enter(State next)
         {
             state = next;
             enteredAt = Time.time;
             bool showing = next == State.Connected || next == State.Reconnecting;
             if (!showing) ClearDisplays();
+            // While sharing, the screens stand round the seat and this card folds away entirely: even its Open pill would
+            // sit between the seat and the main screen, and the screens' own bar has everything the card offers then.
+            // It opens again when sharing ends.
+            if (window)
+            {
+                if (showing && !foldedForSharing) { foldedForSharing = true; window.Minimize(); window.openGroup.SetActive(false); }
+                else if (!showing && foldedForSharing) { foldedForSharing = false; window.Restore(); }
+            }
             chooser.SetActive(next == State.NotPaired);
             pairing.SetActive(next == State.AwaitingApproval);
             message.SetActive(next == State.Connecting || next == State.Disconnected);
-            stream.SetActive(showing);
+            stream.SetActive(false);   // the main display is on its own screen now, not in this card
             controls.SetActive(showing);
-            well.color = showing ? UIStyle.Ink : wellIdle;
+            well.color = wellIdle;
             Summarize();
 
             if (next == State.Connecting)
@@ -309,14 +404,12 @@ namespace StudyEverywhere
             StateChanged?.Invoke(next);
         }
 
-        // The header copy and the panels' placement notes are composed here, so they are written again in a new language.
+        // The header copy and the screens' labels are composed here, so they are written again in a new language.
         void OnLanguage()
         {
             Summarize();
-            foreach (var s in displays.Values) if (s.panel && s.where != null) Detail(s);
+            RefreshBar();
         }
-
-        static void Detail(Shown s) => s.panel.detail.text = $"{s.info.layout.width} × {s.info.layout.height} · {Localization.Tr(s.where)}";
 
         // Header copy: which display this panel shows, and how many are shared.
         void Summarize()
@@ -336,88 +429,83 @@ namespace StudyEverywhere
             };
         }
 
-        void OpenPanel(Shown s)
-        {
-            var layout = s.info.layout;
-            float aspect = layout.width / (float)Mathf.Max(1, layout.height);
-            var template = aspect < 1 ? portraitTemplate : aspect > 1.9f ? ultrawideTemplate : landscapeTemplate;
-            var panel = Instantiate(template);
-            panel.name = "Display panel | " + s.info.name;
-            panel.title.text = s.info.name.ToUpperInvariant();
-            int id = s.info.id;
-            panel.stop.onClick.AddListener(() => StopDisplay(id));
-            panel.view.Show(s.info.texture);
-            panel.view.Mark(s.live);
-            s.panel = panel;
-            panel.gameObject.SetActive(true);
-        }
-
-        static void ClosePanel(Shown s)
-        {
-            if (s.panel) Destroy(s.panel.gameObject);
-            s.panel = null;
-        }
-
         void ClearDisplays()
         {
-            foreach (var s in displays.Values) ClosePanel(s);
+            foreach (var s in displays.Values) Close(s);
             displays.Clear();
+            if (bar) Destroy(bar.gameObject);
+            bar = null;
             mainId = 0;
+            pivotSet = false;
             if (mainView.picture) mainView.Clear();
         }
 
-        // Places every other display's panel where that monitor stands relative to the main one: displays beside it
-        // continue the row to the left or right (in desktop order, edge to edge with a small gap), curved around the
-        // seat so each faces the user; displays mostly above or below it stack over or under the workspace panel.
-        // Desktop units become metres at the scale the main display is drawn at.
+        // A display's size in metres: the monitor's own size when the computer reports it, otherwise its desktop size
+        // at the main display's scale (or, failing that too, as tall as a typical 24-34" monitor), times the user's size.
+        static Vector2 Metres(Shown s, Shown main)
+        {
+            if (s.info.sizeMm.x > 0 && s.info.sizeMm.y > 0) return s.info.sizeMm / 1000f * ScreenScale;
+            var m = main.info;
+            float perUnit = (m.sizeMm.y > 0 ? m.sizeMm.y / 1000f : 0.33f) / Mathf.Max(1, m.layout.height);
+            return new Vector2(s.info.layout.width, s.info.layout.height) * perUnit * ScreenScale;
+        }
+
+        // Stands the screens round the seat the way the monitors stand on the desk: the main one straight ahead with its
+        // top edge at eye level, displays beside it continuing the row left or right (in desktop order, edge to edge),
+        // displays mostly above or below it stacked over or under it. All curve round the seat at a desk's depth, a
+        // little further back as the user makes them bigger. The seat is fixed when sharing starts, so the screens stay
+        // put when the head moves.
         void Arrange()
         {
             if (!displays.TryGetValue(mainId, out var main)) return;
-            var m = main.info.layout;
-            Vector3 scale = transform.lossyScale;
-            Vector2 card = ((RectTransform)transform).sizeDelta, area = ((RectTransform)mainView.picture.transform.parent).rect.size;
-            float mainW = card.x * scale.x, mainH = card.y * scale.y;
-            float metresPerUnit = Mathf.Min(area.x, area.y * m.width / (float)m.height) * scale.x / m.width;
-
-            var head = Camera.main ? Camera.main.transform.position : transform.position - transform.forward;
-            var pivot = new Vector3(head.x, transform.position.y, head.z);
-            if (Vector3.Distance(pivot, transform.position) < 0.3f) pivot = transform.position - Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
-            float radius = Vector3.Distance(pivot, transform.position);
-
-            void Place(Shown s, float arc, float up, string where)
+            if (!pivotSet)
             {
-                var rot = Quaternion.Euler(0, arc / radius * Mathf.Rad2Deg, 0);
-                s.panel.transform.SetPositionAndRotation(pivot + rot * (transform.position - pivot) + Vector3.up * up, rot * transform.rotation);
-                s.where = where; Detail(s);
+                var head = Camera.main ? Camera.main.transform : transform;
+                pivot = head.position;
+                // First time: towards this workspace card (the place's study screen); after Bring to me: where the user looks.
+                var ahead = Vector3.ProjectOnPlane(faceGaze ? head.forward : transform.position - head.position, Vector3.up);
+                if (ahead.sqrMagnitude < 0.04f) ahead = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+                faceGaze = false;
+                pivotYaw = Quaternion.LookRotation(ahead.sqrMagnitude > 1e-4f ? ahead.normalized : Vector3.forward).eulerAngles.y;
+                pivotSet = true;
             }
-            Vector2 Size(Shown s) => ((RectTransform)s.panel.transform).sizeDelta * s.panel.transform.lossyScale.x;
-            bool Stacked(RectInt r) => Mathf.Min(r.xMax, m.xMax) - Mathf.Max(r.xMin, m.xMin) >= 0.5f * Mathf.Min(r.width, m.width);
-            float RowLift(RectInt r) => Mathf.Clamp(-(r.center.y - m.center.y) * metresPerUnit, -mainH / 2, mainH / 2);
+            float radius = Mathf.Clamp(screenDistance + 0.3f * (ScreenScale - 1), 0.65f, 1.8f);
+            var m = main.info.layout;
+            var size = Metres(main, main);
+            // The main screen's centre a little below the eye (a big screen's top would otherwise sit far above it).
+            float mainY = -Mathf.Min(0.12f, size.y * 0.15f), perUnit = size.y / Mathf.Max(1, m.height);
+            main.surface.Layout(pivot, pivotYaw, radius, 0, mainY, size.x, size.y);
+            if (bar) { bar.Place(pivot, pivotYaw); RefreshBar(); }
 
-            var others = displays.Values.Where(s => s.panel).ToList();
-            float above = mainH / 2, below = -mainH / 2;
+            const float strip = 0.02f;   // the gap between stacked screens
+            bool Stacked(RectInt r) => Mathf.Min(r.xMax, m.xMax) - Mathf.Max(r.xMin, m.xMin) >= 0.5f * Mathf.Min(r.width, m.width);
+            float Lift(RectInt r) => Mathf.Clamp(-(r.center.y - m.center.y) * perUnit, -size.y / 2, size.y / 2);
+            var others = displays.Values.Where(s => s != main).ToList();
+
+            float above = mainY + size.y / 2, below = mainY - size.y / 2 - strip;
             foreach (var s in others.Where(s => Stacked(s.info.layout)))
             {
                 var r = s.info.layout;
-                float h = Size(s).y, arc = (r.center.x - m.center.x) * metresPerUnit;
-                if (r.center.y < m.center.y) { above += panelGap + h / 2; Place(s, arc, above, "above main"); above += h / 2; }
-                else { below -= panelGap + h / 2; Place(s, arc, below, "below main"); below -= h / 2; }
+                var sz = Metres(s, main);
+                float arc = (r.center.x - m.center.x) * perUnit;
+                if (r.center.y < m.center.y) { above += strip + sz.y / 2; s.surface.Layout(pivot, pivotYaw, radius, arc, above, sz.x, sz.y); above += sz.y / 2; }
+                else { below -= screenGap + sz.y / 2; s.surface.Layout(pivot, pivotYaw, radius, arc, below, sz.x, sz.y); below -= sz.y / 2 + strip; }
             }
-            float right = mainW / 2;
+            float right = size.x / 2;
             foreach (var s in others.Where(s => !Stacked(s.info.layout) && s.info.layout.center.x >= m.center.x).OrderBy(s => s.info.layout.center.x))
             {
-                float w = Size(s).x;
-                right += panelGap + w / 2;
-                Place(s, right, RowLift(s.info.layout), "right of main");
-                right += w / 2;
+                var sz = Metres(s, main);
+                right += screenGap + sz.x / 2;
+                s.surface.Layout(pivot, pivotYaw, radius, right, mainY + Lift(s.info.layout), sz.x, sz.y);
+                right += sz.x / 2;
             }
-            float left = -mainW / 2;
+            float left = -size.x / 2;
             foreach (var s in others.Where(s => !Stacked(s.info.layout) && s.info.layout.center.x < m.center.x).OrderByDescending(s => s.info.layout.center.x))
             {
-                float w = Size(s).x;
-                left -= panelGap + w / 2;
-                Place(s, left, RowLift(s.info.layout), "left of main");
-                left -= w / 2;
+                var sz = Metres(s, main);
+                left -= screenGap + sz.x / 2;
+                s.surface.Layout(pivot, pivotYaw, radius, left, mainY + Lift(s.info.layout), sz.x, sz.y);
+                left -= sz.x / 2;
             }
         }
     }

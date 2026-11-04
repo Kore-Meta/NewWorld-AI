@@ -22,7 +22,7 @@ namespace StudyEverywhere
     {
         [Tooltip("Frame rate to hold. The closest supported display rate at or above it is requested.")]
         public float targetRefreshRate = 72;
-        [Range(0, 1)] public float baseFoveation = 0.5f;
+        [Range(0, 1)] public float baseFoveation = 0.3f;   // (Nov 3 review, the user: the surroundings blurred while the frame rate held: .5)
         [Range(0.5f, 1)] public float minRenderScale = 0.7f;
         [Tooltip("Show the focus status strip in release builds too. Development builds always show it.")]
         public bool showFps;
@@ -32,7 +32,9 @@ namespace StudyEverywhere
 
         // Each level costs less than the one before it. Scales are relative to the asset's own render scale (1.2 on Quest:
         // supersampled eye buffers keep text and fine edges crisp); 0 drops to minRenderScale.
-        static readonly (float foveation, float scale)[] Levels = { (-1, 1f), (1, 1f), (1, 0.9f), (1, 0.8f), (1, 0) };
+        // (Nov 3 review: a middle foveation step, so the first trade is not straight to the blurriest edges; the Quest 3S has
+        // no eye tracking, so foveation is fixed and its blur is all round the view, seen as blurry surroundings)
+        static readonly (float foveation, float scale)[] Levels = { (-1, 1f), (0.6f, 1f), (1, 1f), (1, 0.9f), (1, 0.8f), (1, 0) };
         const float Window = 0.5f;
 
         readonly List<XRDisplaySubsystem> displays = new List<XRDisplaySubsystem>();
@@ -60,8 +62,12 @@ namespace StudyEverywhere
             if (governs)
             {
                 // Over budget for 1 s: step down. Comfortable for 5 s: step up.
-                bool over = fps < target * 0.97f || gpu > budget * 0.92f;
-                bool headroom = fps >= target * 0.99f && gpu > 0 && gpu < budget * 0.7f;
+                // (Nov 3: only the GPU's time counts against resolution when it is known. A dip in frame rate with the GPU inside
+                // its budget is the CPU's (a scene load, a hitch), which a blurrier view cannot win back; it used to step down too)
+                bool over = gpu > 0 ? gpu > budget * 0.92f : fps < target * 0.97f;
+                // (headroom below 80% of the budget, was 70%: a heavy room like Solace's rotunda seldom fell that low, so after
+                // one stutter it stayed at the blurry levels for good while holding the frame rate; 80-92% is the dead band)
+                bool headroom = fps >= target * 0.99f && gpu > 0 && gpu < budget * 0.8f;
                 overWindows = over ? overWindows + 1 : 0;
                 headroomWindows = headroom ? headroomWindows + 1 : 0;
                 if (overWindows >= 2 && level < Levels.Length - 1) { SetLevel(level + 1); overWindows = 0; }

@@ -11,6 +11,7 @@ namespace StudyEverywhere
         public string name;
         public bool primary;
         public RectInt layout;
+        public Vector2 sizeMm;    // the monitor's physical size, when the computer knows it (zero otherwise)
         public Texture texture;   // frames are drawn into this texture
     }
 

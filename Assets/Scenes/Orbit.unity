@@ -220764,7 +220764,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StudyEverywhere.QuestPerformance
   targetRefreshRate: 72
-  baseFoveation: 0.5
+  baseFoveation: 0.3
   minRenderScale: 0.7
   showFps: 0
   uiSprite: {fileID: 21300000, guid: 3581e613fa0cf684a81919e336944e8a, type: 3}

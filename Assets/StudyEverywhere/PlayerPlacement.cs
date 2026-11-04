@@ -87,7 +87,12 @@ namespace StudyEverywhere
         {
             if (!freeSpot) freeSpot = new GameObject("Standing spot | where you got up").transform;
             var head = origin.Camera.transform; var f = Vector3.ProjectOnPlane(head.forward, Vector3.up);
-            freeSpot.SetPositionAndRotation(head.position, Quaternion.LookRotation(f.sqrMagnitude > 1e-4f ? f : Vector3.forward));
+            // The spot's eye is a standing eye over the floor the rig stands on now, not the head itself: the head still
+            // has the seat's eye height (about 1.2 m), and MoveTo looks for a floor 1.5 m under a standing eye, so in
+            // Solace's rotunda a teleport or glide away from an upstairs couch (or from the desk up to the music floor)
+            // found the ground floor 5.4 m down and dropped the person to it.
+            var at = new Vector3(head.position.x, origin.transform.position.y + 1.6f, head.position.z);
+            freeSpot.SetPositionAndRotation(at, Quaternion.LookRotation(f.sqrMagnitude > 1e-4f ? f : Vector3.forward));
             StandAt(freeSpot);
         }
 

@@ -51,5 +51,15 @@ namespace StudyEverywhere
                 return false;
             }
         }
+
+        // The hand's pointing ray (Near-Far far casting: the line and its dot) put away while the thumb is on the finger
+        // turn button, and brought back after. Only undoes what it did itself.
+        bool pointerAway;
+        public void PutPointerAway(bool away)
+        {
+            if (!nearFar || away == pointerAway) return;
+            if (away && (!nearFar.enableFarCasting || nearFar.hasSelection)) return;
+            nearFar.enableFarCasting = !away; pointerAway = away;
+        }
     }
 }

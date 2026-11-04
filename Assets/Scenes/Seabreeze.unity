@@ -4417,7 +4417,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 59d0258733ca1dc45bffe4eaec39a515, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b31cc2d4b6454ed46a78c40b3d663951, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -6521,7 +6521,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StudyEverywhere.QuestPerformance
   targetRefreshRate: 72
-  baseFoveation: 0.5
+  baseFoveation: 0.3
   minRenderScale: 0.7
   showFps: 0
   uiSprite: {fileID: 21300000, guid: 3581e613fa0cf684a81919e336944e8a, type: 3}
@@ -6885,7 +6885,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 59d0258733ca1dc45bffe4eaec39a515, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b31cc2d4b6454ed46a78c40b3d663951, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -14023,7 +14023,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 59d0258733ca1dc45bffe4eaec39a515, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b31cc2d4b6454ed46a78c40b3d663951, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -14887,8 +14887,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StudyEverywhere.ParisMusic
   playlist:
-  - {fileID: 8300000, guid: b37690f70e399de46ba1d2dc6bd562ab, type: 3}
   - {fileID: 8300000, guid: f28a2480f2886dc4fac9d95983933c42, type: 3}
+  - {fileID: 8300000, guid: b37690f70e399de46ba1d2dc6bd562ab, type: 3}
   loopTracks: []
   credits: []
   defaultVolume: 0.45
@@ -17227,7 +17227,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 59d0258733ca1dc45bffe4eaec39a515, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b31cc2d4b6454ed46a78c40b3d663951, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -17686,7 +17686,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 59d0258733ca1dc45bffe4eaec39a515, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b31cc2d4b6454ed46a78c40b3d663951, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -22793,8 +22793,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StudyEverywhere.CalypsoCompanion
   voice: {fileID: 952598049}
   speaker: {fileID: 600343888}
-  voiceName: Charlie
-  pitch: 96
+  voiceName: Rebecca
+  pitch: 92
   serverUrl: 
   appToken: 
   time: {fileID: 1450581500}
@@ -24666,7 +24666,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 152
+  m_fontSize: 168
   m_fontSizeBase: 168
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -30026,7 +30026,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Salt & Sunlight
+  m_text: Driftwood Sunset
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 398c33b12c2a4a24cb8d16ee907eb5b6, type: 2}
   m_sharedMaterial: {fileID: -8526469849842475191, guid: 398c33b12c2a4a24cb8d16ee907eb5b6, type: 2}
@@ -43460,7 +43460,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 59d0258733ca1dc45bffe4eaec39a515, type: 3}
+  m_Sprite: {fileID: 21300000, guid: b31cc2d4b6454ed46a78c40b3d663951, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

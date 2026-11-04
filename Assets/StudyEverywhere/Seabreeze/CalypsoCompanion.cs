@@ -26,8 +26,10 @@ namespace StudyEverywhere
         [Header("Voice SDK")]
         public AppVoiceExperience voice;
         public TTSSpeaker speaker;
-        [Tooltip("Wit text-to-speech voice (a warm, calm woman's voice) and pitch.")] public string voiceName = "Charlie";
-        [Range(25, 200)] public int pitch = 96;
+        [Tooltip("Wit text-to-speech voice: a soft, smooth woman's voice that flows like water (Nov 3: Rebecca, soft, a touch low and unhurried).")] public string voiceName = "Rebecca";
+        [Range(25, 200)] public int pitch = 92;
+        [Tooltip("Wit style: default, soft, formal, fast or projected.")] public string voiceStyle = "soft";
+        [Tooltip("Speaking speed (100: normal); a little slower reads as calm and flowing.")] [Range(50, 200)] public int voiceSpeed = 88;
         [Header("Relay server (Tools/CatServer); empty: Resources/VoiceRelay.json")]
         public string serverUrl = "", appToken = "";
         [Header("The beach")]
@@ -111,7 +113,7 @@ namespace StudyEverywhere
 
         void Start()
         {
-            if (speaker) SpokenLines.Voice(speaker, voiceName, pitch);
+            if (speaker) speaker.SetVoiceOverride(new Meta.WitAi.TTS.Integrations.TTSWitVoiceSettings { voice = voiceName, pitch = pitch, style = string.IsNullOrEmpty(voiceStyle) ? "default" : voiceStyle, speed = voiceSpeed });
             Idle();
             if (card && user) PlaceCard(true);
             AddCuesAndGuide();
@@ -429,7 +431,8 @@ namespace StudyEverywhere
 
                 string answer = null; string[] actions = null;
                 var url = VoiceRelay.Url(serverUrl);
-                if (!string.IsNullOrEmpty(url))
+                yield return VoiceRelay.Check(url, appToken);   // no relay: she does what she can herself at once
+                if (!string.IsNullOrEmpty(url) && VoiceRelay.Up)
                 {
                     var past = new List<Line>(); foreach (var (role, said) in history) past.Add(new Line { role = role, text = said });
                     var body = JsonUtility.ToJson(new Request { text = text, state = Describe(), now = DateTime.Now.ToString("dddd d MMMM yyyy, HH:mm"), history = past.ToArray() });
@@ -573,21 +576,34 @@ namespace StudyEverywhere
             return null;
         }
 
-        // Without the relay: the plain commands, done straight away, and a short friendly line.
+        // Without the relay: the plain commands, done straight away, and a short friendly line. Each clause ("light the
+        // fire and calm the waves") is read on its own, so an "off" word in one doesn't turn the other off too, and the
+        // everyday ways of saying a time ("make it dark", "golden hour", "daytime") count as well as the preset names.
+        static readonly (string words, string preset)[] TimeWords =
+        {
+            (@"morning|sunrise|dawn|daybreak|early", "morning"),
+            (@"afternoon|daytime|day ?light|midday|noon|bright", "afternoon"),
+            (@"sunset|sun ?down|dusk|evening|golden hour", "sunset"),
+            (@"night|nighttime|midnight|dark|stars", "night"),
+        };
+        static readonly Regex Clauses = new Regex(@"\s*(?:,|;|\band then\b|\bthen\b|\band\b|\balso\b)\s*", RegexOptions.IgnoreCase);
         (string, string[]) Offline(string text)
         {
-            var t = (text ?? "").ToLowerInvariant();
-            bool Has(string w) => Regex.IsMatch(t, @"\b" + w + @"\b");
-            bool off = Has("off") || Has("out") || Has("stop") || Has("calm") || Has("still") || Has("pause") || Has("put out") || Has("no more");
             var acts = new List<string>();
-            if (Has("hatch\\w*") || Has("turtles?")) acts.Add("hatch");
-            foreach (var n in PresetNames) if (Has(n)) acts.Add("time " + n);
-            if (Has("dawn") && !acts.Contains("time morning")) acts.Add("time morning");
-            if (Has("cycle") || Has("time pass\\w*")) acts.Add(off ? "cycle off" : "cycle on");
-            if (Has("waves?") || Has("sea") || Has("lagoon")) acts.Add(off ? "waves off" : "waves on");
-            if (Has("fire") || Has("campfire") || Has("flames?")) acts.Add(off ? "fire off" : "fire on");
+            void Add(string a) { if (!acts.Contains(a)) acts.Add(a); }
+            foreach (var clause in Clauses.Split((text ?? "").ToLowerInvariant()))
+            {
+                var t = clause;
+                bool Has(string w) => Regex.IsMatch(t, @"\b(?:" + w + @")\b");
+                bool off = Has(@"off|out|stop\w*|calm\w*|still|quiet|settle|smooth|pause\w*|freeze|hold|extinguish|no more|end");
+                if (Has(@"hatch\w*|turtles?|hatchlings?|babies|nest")) Add("hatch");
+                if (Has(@"cycle|time pass\w*|time go\w*|day go\w*")) Add(off ? "cycle off" : "cycle on");
+                else foreach (var (words, preset) in TimeWords) if (Has(words)) { Add("time " + preset); break; }
+                if (Has(@"waves?|sea|lagoon|ocean|water|tide")) Add(off ? "waves off" : "waves on");
+                if (Has(@"fire|campfire|flames?|bonfire|fire ?bowl")) Add(off ? "fire off" : "fire on");
+            }
             string say = acts.Count > 0 ? Localization.Tr("There you go. I'll be here if you need anything else.")
-                : Localization.Tr("I can't reach my thoughts right now, but I can still hatch the turtles, change the time, calm the waves or put out the fire.");
+                : Localization.Tr("My connection is resting right now, so I can't chat, but I can still change the time, hatch the turtles, calm the waves or put out the fire.");
             return (say, acts.ToArray());
         }
 

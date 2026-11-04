@@ -14,11 +14,15 @@ namespace StudyEverywhere
     public sealed class WholeClipAudioPlayer : BaseAudioPlayer, IAudioSourceProvider
     {
         [SerializeField] AudioSource source;
-        [Tooltip("If a line never finishes downloading, play what has arrived after this many seconds.")] public float maxWait = 12;
+        // Timed from the last audio that arrived, not from the start: Wit streams a line at about the pace it is spoken, so
+        // a long line (a composer's 15 s sentence) can take longer than this to arrive whole, and timing from the start cut
+        // it off in the middle.
+        [Tooltip("If a line stops arriving for this many seconds, play what has arrived.")] public float maxWait = 12;
 
         AudioClip clip;
         bool waiting, paused;
         float waitSince;
+        int arrived;
 
         public AudioSource AudioSource => source;
         public override bool IsPlaying => ClipStream != null && !paused && (waiting || source && source.isPlaying);
@@ -35,7 +39,7 @@ namespace StudyEverywhere
         protected override void Play(int offsetSamples)
         {
             if (!source) Init();
-            paused = false; waiting = true; waitSince = Time.unscaledTime;
+            paused = false; waiting = true; waitSince = Time.unscaledTime; arrived = 0;
             Update();
         }
 
@@ -43,12 +47,13 @@ namespace StudyEverywhere
         {
             if (!waiting || paused || ClipStream == null) return;
             var s = ClipStream;
+            if (s.AddedSamples > arrived) { arrived = s.AddedSamples; waitSince = Time.unscaledTime; }
             bool timedOut = Time.unscaledTime - waitSince > maxWait;
             if (!s.IsComplete && !timedOut) return;
             waiting = false;
             int channels = Mathf.Max(1, s.Channels), frames = s.AddedSamples / channels;
             if (frames <= 0) return;   // nothing arrived: IsPlaying goes false and the speaker moves on
-            if (timedOut) Debug.LogWarning("Orbit voice: a line did not finish downloading; playing what arrived.");
+            if (timedOut) Debug.LogWarning("Voice: a line stopped downloading; playing what arrived.");
             var data = new float[frames * channels];
             s.ReadSamples(0, data);
             if (clip) Destroy(clip);

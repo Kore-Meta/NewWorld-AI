@@ -51,7 +51,7 @@ namespace StudyEverywhere
             sfx = gameObject.AddComponent<AudioSource>();
             sfx.playOnAwake = false; sfx.spatialBlend = .3f; sfx.volume = 1;   // soundVolume is applied once, per sound (Play)
             MakeSounds();
-            foreach (var b in GetComponentsInChildren<Button>(true)) b.onClick.AddListener(() => Play(tick));
+            foreach (var b in GetComponentsInChildren<Button>(true)) b.onClick.AddListener(() => { Play(tick); Settle(); });
             if (watchLeft) watchLeft.onClick.AddListener(() => { WristWatch.Worn = WristWatch.Hand.Left; MarkWatch(); });
             if (watchRight) watchRight.onClick.AddListener(() => { WristWatch.Worn = WristWatch.Hand.Right; MarkWatch(); });
             SetShown(false);
@@ -103,6 +103,7 @@ namespace StudyEverywhere
             bool wasShown = shown && motion == null;   // still being drawn in counts as closed: spring back out
             SetShown(true);
             if (wasShown) return;
+            Settle();
             Play(pingOpen);
             Animate(true);
         }
@@ -111,6 +112,7 @@ namespace StudyEverywhere
         Vector3 rigWas; Quaternion rigTurnWas; bool rigKnown;
         void LateUpdate()
         {
+            Reopen();
             if (!origin) return;
             var rig = origin.transform;
             if (shown && motion == null && rigKnown && ((rig.position - rigWas).sqrMagnitude > 1e-6f || Quaternion.Angle(rig.rotation, rigTurnWas) > .01f))
@@ -128,6 +130,19 @@ namespace StudyEverywhere
             Animate(false);
         }
         public void Toggle() { if (shown) Close(); else Open(); }
+
+        // Nov 3 review (the user: a button on a page just opened was pressed by the same point or pinch that opened it,
+        // Locations into a place, say): for a moment after any press, and as the menu opens, it lets rays and fingers
+        // through, so the press that changed the page cannot land on what appears under it. Nothing greys out meanwhile.
+        // (reopened from LateUpdate, which no menu declares again; their own Update and OnDisable would hide one here)
+        const float SettleSeconds = .3f;
+        CanvasGroup inputGate; float settledAt;
+        protected void Settle()
+        {
+            if (!inputGate) { inputGate = GetComponent<CanvasGroup>(); if (!inputGate) inputGate = gameObject.AddComponent<CanvasGroup>(); }
+            inputGate.blocksRaycasts = false; settledAt = Time.unscaledTime + SettleSeconds;
+        }
+        void Reopen() { if (inputGate && !inputGate.blocksRaycasts && Time.unscaledTime >= settledAt) inputGate.blocksRaycasts = true; }
         // Kept for the menus' Close buttons.
         public void Unpin() => Close();
 

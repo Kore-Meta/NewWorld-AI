@@ -21,6 +21,7 @@ namespace StudyEverywhere
         [Tooltip("Degrees; steeper ground is not walked onto.")] public float slopeLimit = 35;
         [Tooltip("Metres a second the feet settle onto lower ground (higher ground is met at once).")] public float settle = 6;
         [Tooltip("A drop bigger than this (a teleport, a place) is taken in one go.")] public float snap = .75f;
+        [Tooltip("Metres; ground further than this under the feet is not walked down to (an upper storey's edge: the floor below is not stepped off onto, the person slides back). 0: any drop.")] public float maxDrop;
 
         Vector3 lastGood; bool known;
 
@@ -49,7 +50,7 @@ namespace StudyEverywhere
             if (!Upright) { known = false; return; }
             var rig = origin.transform;
             var head = origin.Camera.transform.position;
-            if (Ground(head, out float y)) { lastGood = head; known = true; Settle(y, false, false); return; }
+            if (Ground(head, out float y) && (maxDrop <= 0 || rig.position.y - y <= maxDrop)) { lastGood = head; known = true; Settle(y, false, false); return; }
             if (!known) return;
             // back to where the head last stood on good ground, keeping the way the person now faces
             rig.position += new Vector3(lastGood.x - head.x, 0, lastGood.z - head.z);

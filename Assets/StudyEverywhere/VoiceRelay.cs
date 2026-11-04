@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -79,9 +80,33 @@ namespace StudyEverywhere
             if (string.IsNullOrEmpty(url) || (!now && Time.realtimeSinceStartup - lastWake < WakeEvery)) return;
             lastWake = Time.realtimeSinceStartup;
             var req = UnityWebRequest.Get(url + "/health"); req.timeout = 90;
-            req.SendWebRequest().completed += _ => req.Dispose();
+            req.SendWebRequest().completed += _ => { Heard(req); req.Dispose(); };
         }
         sealed class Waker : MonoBehaviour { void Update() => Wake(); }
+
+        // Whether the relay is running (New World's Nov 3 check, so a character doesn't sit on "Thinking…" for its whole
+        // talk timeout when nothing answers). Here the relay is hosted and may be waking (15-20 s), so a slow answer is not
+        // a missing relay: only a connection that fails counts as down, the check waits as long as a wake can take, and
+        // any answer (the wakes' included) holds for ten minutes. Muse is never skipped while the relay can still answer.
+        public static bool Up { get; private set; } = true;
+        static float checkedAt = -999;
+        static void Heard(UnityWebRequest request)
+        {
+            Up = request.result != UnityWebRequest.Result.ConnectionError;
+            checkedAt = Time.realtimeSinceStartup;
+            if (!Up) Debug.LogWarning($"Relay: nothing answers at {Url()} ({request.error}).");
+        }
+        public static IEnumerator Check(string url, string ownToken = "")
+        {
+            if (string.IsNullOrEmpty(url) || Time.realtimeSinceStartup - checkedAt < (Up ? WakeEvery : 3)) yield break;
+            using var request = UnityWebRequest.Get(url + "/health");
+            request.timeout = 30;
+            UnityWebRequestAsyncOperation sending = null;
+            try { sending = request.SendWebRequest(); } catch (Exception) { }   // an http address a release build refuses
+            if (sending != null) yield return sending;
+            if (sending == null) { Up = false; checkedAt = Time.realtimeSinceStartup; }
+            else Heard(request);
+        }
 
         // For lines that contain what someone said or what a character replied: compiled out of release builds.
         [Conditional("UNITY_EDITOR"), Conditional("DEVELOPMENT_BUILD")]

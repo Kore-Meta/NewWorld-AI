@@ -15,6 +15,11 @@ with a crown, but can't be entered.
 | **Seoul** | Focus: a hanok tea room in Bukchon | **Hori**, a tiger cub. Chat with her; she comes over, chuffs, slow-blinks, plays with her ball or runs around the courtyard. |
 | **Seabreeze** | Unwind: a palm lagoon beach | **Calypso**, the beach's own voice. Say *"Calypso, hatch the turtles"*, *"make it sunset"*, *"start the day cycle"*, *"calm the waves"* or *"put out the fire"*, or just chat. She is voice-first: her water orb shows what she's doing by colour, motion and sound (a chime as she hears her name, aqua listening, violet thinking, amber acting with a ring), the phrases to say flow out of her with small icons, she says a request with several steps back with a moment to say *"wait"*, leads your eye to the nest, puts things back on *"change it back"*, and docks at the edge of view when quiet. Captions are optional. |
 
+Orbit and Seoul also have a **Connect a computer** card: run the Windows companion app (`Tools/DesktopCompanion`, see
+its README) on a PC on the same Wi-Fi, enter the code the headset shows, and every display you pick stands round your
+seat as a curved screen at its real size. The screens go straight from the PC to the headset over the local network
+(WebRTC), never through the relay or any server.
+
 Speech-to-text and the characters' voices use Meta's Voice SDK (Wit.ai) on the headset. What you say goes to a small
 relay server (`Tools/CatServer`), which asks Muse for the reply and the in-world actions (Muse tool calls), so the
 Muse key never ships in the app.

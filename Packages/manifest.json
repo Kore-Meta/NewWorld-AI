@@ -47,6 +47,7 @@
     "com.unity.nuget.newtonsoft-json": "3.2.2",
     "com.unity.render-pipelines.universal": "17.6.0",
     "com.unity.test-framework": "1.8.0",
+    "com.unity.webrtc": "3.0.0",
     "com.unity.xr.androidxr-openxr": "1.4.0",
     "com.unity.xr.arfoundation": "6.6.2",
     "com.unity.xr.compositionlayers": "2.6.0",

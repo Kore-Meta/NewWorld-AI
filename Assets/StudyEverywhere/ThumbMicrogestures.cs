@@ -16,10 +16,10 @@ namespace StudyEverywhere
     //   tap (touch and lift without moving)      teleport to where you are looking (a ring shows the spot while the
     //                                            thumb rests on the finger)
     // Glides stop short of walls and furniture; a teleport only lands on floor that teleporting allows.
-    // The places are seated, so by default only turning is on, by two round arrow buttons on the thumb side of each index
-    // finger (FingerTurnButtons): press one with the thumb to turn its way. They replaced the invisible taps on the side of
-    // the finger (tapTurn: near the knuckle right, near the tip left), which were hard to hit and still run with
-    // fingerButtons off. Swipes were hard to make; swipeTurn, swipeGlide and tapTeleport switch them on. With hands,
+    // The places are seated, so by default only turning is on, by a round arrow button on the thumb side of each index
+    // finger's middle joint (FingerTurnButtons): the right hand's turns right, the left hand's left. It replaced the
+    // invisible taps on the side of the finger (tapTurn: near the knuckle right, near the tip left), which were hard to hit
+    // and still run with fingerButtons off. Swipes were hard to make; swipeTurn, swipeGlide and tapTeleport switch them on. With hands,
     // teleporting is the hand-teleport gesture alone (thumb and index out, pinch to aim, release to go).
     public sealed class ThumbMicrogestures : MonoBehaviour
     {
@@ -43,11 +43,12 @@ namespace StudyEverywhere
         [Range(0, .25f), Tooltip("Ignore ambiguous taps around the middle of the index finger.")]
         public float directionDeadZone = .08f;
 
-        [Tooltip("Two round arrow buttons on the thumb side of each index finger, near the tip and near the knuckle: press one with the thumb to turn that way. On, they replace the invisible taps.")]
+        [Tooltip("A round arrow button on the thumb side of each index finger's middle joint (right hand turns right, left hand left): press it with the thumb. On, it replaces the invisible taps.")]
         public bool fingerButtons = true;
         // NewWorld AI (Nov 3 review, item 41: snap turn was on both hands; the user: the right hand turns, the left moves).
-        // Off: the left hand never turns, neither its finger buttons and thumb taps nor its controller's thumbstick.
-        [Tooltip("The left hand turns too (its finger buttons and taps, and its controller's thumbstick). Off: only the right hand turns; the left moves.")]
+        // Off: the left controller's thumbstick moves and never turns, and the left hand's old thumb taps are off. The finger
+        // buttons are one a hand since Nov 4 (the left one turns left), so both hands keep theirs: without it, no left turn.
+        [Tooltip("The left controller's thumbstick turns too, and the left hand's old thumb taps. Off: the left stick only moves. (Both hands' finger buttons work either way.)")]
         public bool leftHandTurn;
         [Tooltip("Button size across, and how far out from the middle of the finger it sits (metres).")] public float buttonSize = .015f, buttonOut = .0105f;
         [Tooltip("The thumb pad within this of a button's centre presses it; it must then move this far off before the next press (metres).")]
@@ -55,6 +56,8 @@ namespace StudyEverywhere
         [Min(0), Tooltip("How long the thumb rests on a button before it turns (seconds): enough to skip a brush past.")] public float pressDwell = .05f;
         [Range(20, 80), Tooltip("The buttons show, and work, only while the hand is within this many degrees of where you look.")] public float buttonView = 50;
         [Tooltip("Thumb tip this close to the index tip is a pinch, which disarms the buttons (metres).")] public float pinchGap = .02f;
+        [Range(0, 1), Tooltip("A palm turned to the face past this (cosine) hides the button: that pose brings up Meta's own menu button.")]
+        public float palmToFace = .55f;
 
         // A hand busy with something real (typing on a real keyboard, holding a cup) makes the same thumb-on-finger touches
         // as a tap: while this says so for a hand, that hand's gestures do nothing.
@@ -92,6 +95,7 @@ namespace StudyEverywhere
         {
             left.gate.Reset(); right.gate.Reset(); glideT = 1;
             left.buttons?.Hide(); right.buttons?.Hide();
+            leftGuard.PutPointerAway(false); rightGuard.PutPointerAway(false);
             if (target) target.gameObject.SetActive(false);
         }
 
@@ -111,10 +115,11 @@ namespace StudyEverywhere
             {
                 if (fingerButtons)
                 {
-                    if (leftHandTurn) Buttons(hands.leftHand, Handedness.Left, left, leftGuard); else left.buttons?.Hide();
+                    // one button a hand since Nov 4 (the left one turns left), so both stay on whatever leftHandTurn says
+                    Buttons(hands.leftHand, Handedness.Left, left, leftGuard);
                     Buttons(hands.rightHand, Handedness.Right, right, rightGuard);
                 }
-                else { left.buttons?.Hide(); right.buttons?.Hide(); }
+                else { left.buttons?.Hide(); right.buttons?.Hide(); leftGuard.PutPointerAway(false); rightGuard.PutPointerAway(false); }
                 // the older joint gestures, only when one of them is on
                 if (tapTeleport || swipeGlide || swipeTurn || (tapTurn && !fingerButtons))
                 { if (leftHandTurn) aiming |= Read(hands.leftHand, left, leftGuard); aiming |= Read(hands.rightHand, right, rightGuard); }
@@ -172,8 +177,9 @@ namespace StudyEverywhere
             return tapTeleport && s.gate.Touching && !s.gate.Consumed;
         }
 
-        // The arrow buttons on one index finger: shown while the hand is tracked, in front of the eyes and not holding
-        // anything; a press turns. A ray resting on a menu does not hide them (pressing the side of the finger is no pinch).
+        // The arrow button on one index finger: shown while the hand is tracked, in front of the eyes, palm not turned to
+        // the face (Meta's menu button pose) and not holding anything; a press turns. A ray resting on a menu does not hide
+        // it (pressing the side of the finger is no pinch), but while the thumb is on it the ray is put away.
         void Buttons(XRHand hand, Handedness side, State s, HandInteractionGuard guard)
         {
             var space = origin.CameraFloorOffsetObject ? origin.CameraFloorOffsetObject.transform : origin.transform;
@@ -182,14 +188,17 @@ namespace StudyEverywhere
                 || !hand.GetJoint(XRHandJointID.IndexProximal).TryGetPose(out var knuckle) || !hand.GetJoint(XRHandJointID.IndexIntermediate).TryGetPose(out var middle)
                 || !hand.GetJoint(XRHandJointID.IndexDistal).TryGetPose(out var distal) || !hand.GetJoint(XRHandJointID.IndexTip).TryGetPose(out var tip)
                 || !hand.GetJoint(XRHandJointID.ThumbProximal).TryGetPose(out var thumbBase) || !hand.GetJoint(XRHandJointID.ThumbDistal).TryGetPose(out var thumbDistal)
-                || !hand.GetJoint(XRHandJointID.ThumbTip).TryGetPose(out var thumb))
-            { s.buttons.Hide(); return; }
+                || !hand.GetJoint(XRHandJointID.ThumbTip).TryGetPose(out var thumb) || !hand.GetJoint(XRHandJointID.Palm).TryGetPose(out var palm))
+            { s.buttons.Hide(); guard.PutPointerAway(false); return; }
             var head = origin.Camera.transform;
             var eye = space.InverseTransformPoint(head.position);
             var toHand = knuckle.position - eye;
             bool inView = toHand.magnitude < .8f && Vector3.Angle(space.InverseTransformDirection(head.forward), toHand) < buttonView;
-            int turn = s.buttons.Step(inView && !guard.Holding, Time.unscaledTime >= nextAction, knuckle, middle, distal, tip,
+            // joint +Y is the back of the hand, so the palm faces -Y
+            bool palmToEyes = Vector3.Dot(palm.rotation * Vector3.down, (eye - palm.position).normalized) > palmToFace;
+            int turn = s.buttons.Step(inView && !palmToEyes && !guard.Holding, Time.unscaledTime >= nextAction, knuckle, middle, distal, tip,
                 thumbBase.position, thumbDistal.position, thumb.position, eye, space.InverseTransformDirection(head.up), Time.unscaledTime);
+            guard.PutPointerAway(s.buttons.ThumbClose);
             if (turn != 0) { AcceptAction(); Turn(turn); }
         }
 

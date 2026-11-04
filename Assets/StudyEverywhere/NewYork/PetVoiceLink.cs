@@ -146,7 +146,8 @@ namespace StudyEverywhere
                 VoiceRelay.Transcript($"{Who}: heard \"{text}\"");
                 if (lastExchange >= 0 && Time.time - lastExchange > ForgetAfter) history.Clear();
                 string url = VoiceRelay.Url(serverUrl), reply = null; string[] actions = null;
-                if (!string.IsNullOrEmpty(url))
+                yield return VoiceRelay.Check(url, appToken);
+                if (!string.IsNullOrEmpty(url) && VoiceRelay.Up)
                 {
                     // the headset's local date and time, so he knows what "today" is
                     var now = DateTime.Now.ToString("dddd d MMMM yyyy, HH:mm", System.Globalization.CultureInfo.InvariantCulture);

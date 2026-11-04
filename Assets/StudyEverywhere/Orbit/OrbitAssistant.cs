@@ -216,7 +216,8 @@ namespace StudyEverywhere
                 string reply = null; string[] actions = null;
                 // the relay's address and token from Resources/VoiceRelay.json (VoiceRelay), as the pets and Calypso: never saved in the scene
                 var url = VoiceRelay.Url(serverUrl);
-                if (!string.IsNullOrEmpty(url))
+                yield return VoiceRelay.Check(url, appToken);   // no relay: the fact sheet answers at once
+                if (!string.IsNullOrEmpty(url) && VoiceRelay.Up)
                 {
                     var body = JsonUtility.ToJson(new Request { text = text, state = deck ? deck.Describe() : "", lang = Localization.LanguageName });
                     using var req = new UnityWebRequest(url + "/orbit/talk", "POST") { uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body)), downloadHandler = new DownloadHandlerBuffer(), timeout = 40 };
