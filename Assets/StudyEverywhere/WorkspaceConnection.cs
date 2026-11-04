@@ -35,6 +35,8 @@ namespace StudyEverywhere
         public float giveUpAfter = 15f;
         [Tooltip("Seconds to wait for the streams after approval.")]
         public float connectTimeout = 20f;
+        [Tooltip("Where people get the New World Desktop app, as the panel shows it (no https://).")]
+        public string desktopAppPage = "github.com/Kore-Meta/NewWorld-AI/releases";   // NewWorld AI: the installer is on the release
 
         [Header("Panel")]
         public TMP_Text eyebrow, subtitle;
@@ -122,6 +124,18 @@ namespace StudyEverywhere
             window = GetComponent<PanelWindow>();
             if (screen == null) Debug.LogError("[WorkspaceConnection] The source does not implement IScreenSource.", this);
             if (ComingSoon) ShowComingSoon();
+            else ShowInstallHint();
+        }
+
+        // Under Connect a computer: that it needs the desktop app installed on the PC, and where to get it (the user,
+        // Nov 4: people must know to install it first). The hint line shrinks to fit a long address or translation.
+        TMP_Text Hint => chooser ? chooser.GetComponentsInChildren<TMP_Text>(true).FirstOrDefault(t => t.name == "Connect hint") : null;
+        void ShowInstallHint()
+        {
+            var hint = Hint;
+            if (!hint) return;
+            if (!hint.enableAutoSizing) { hint.fontSizeMax = hint.fontSize; hint.fontSizeMin = hint.fontSize * .7f; hint.enableAutoSizing = true; }
+            hint.text = Localization.Format("Install the New World Desktop app on a Windows PC on this Wi-Fi: {0}", desktopAppPage);
         }
 
         // Until the real desktop app and stream exist, only the simulated source is wired in. In release builds the
@@ -134,7 +148,7 @@ namespace StudyEverywhere
             connect.interactable = false;
             var colours = connect.colors; colours.disabledColor = Color.Lerp(UIStyle.WarmIvory, UIStyle.LightBorder, .45f); connect.colors = colours;
             foreach (var t in connect.GetComponentsInChildren<TMP_Text>(true)) t.color = UIStyle.Secondary;
-            var hint = chooser ? chooser.GetComponentsInChildren<TMP_Text>(true).FirstOrDefault(t => t.name == "Connect hint") : null;
+            var hint = Hint;
             if (hint) { hint.text = "COMING SOON"; hint.fontStyle = FontStyles.Bold; hint.color = UIStyle.Brass; }   // Localizer translates it
         }
 
@@ -329,7 +343,8 @@ namespace StudyEverywhere
             {
                 case State.AwaitingApproval:
                     float left = expiresAt - Time.time;
-                    if (left <= 0) { screen.Cancel(); OnEnded("The code expired before the computer approved. Retry for a new code."); break; }
+                    // most often no desktop app answered at all: say what it needs and where to get it
+                    if (left <= 0) { screen.Cancel(); OnEnded(Localization.Format("The code expired before the computer approved. Is the New World Desktop app installed and open on your PC? Get it at {0}, then Retry.", desktopAppPage)); break; }
                     int s = Mathf.CeilToInt(left);
                     countdown.text = Localization.Format("Code expires in {0}:{1:00}", s / 60, s % 60);
                     break;
@@ -407,6 +422,7 @@ namespace StudyEverywhere
         // The header copy and the screens' labels are composed here, so they are written again in a new language.
         void OnLanguage()
         {
+            if (!ComingSoon) ShowInstallHint();
             Summarize();
             RefreshBar();
         }
