@@ -627,7 +627,7 @@ Transform:
   m_GameObject: {fileID: 49805001}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.48723435, y: 0.2236208, z: 3.419445}
+  m_LocalPosition: {x: -0.48723435, y: -0.0862792, z: 3.419445}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -9559,7 +9559,7 @@ Transform:
   m_GameObject: {fileID: 528101773}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.12186935, z: 0, w: 0.99254614}
-  m_LocalPosition: {x: -2.763347, y: 0.6988588, z: -7.214878}
+  m_LocalPosition: {x: -2.763347, y: 0.389, z: -7.214878}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -14354,7 +14354,7 @@ Transform:
   m_GameObject: {fileID: 619634536}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.48723435, y: 0.2236208, z: 3.419445}
+  m_LocalPosition: {x: -0.48723435, y: -0.0862792, z: 3.419445}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -22810,12 +22810,17 @@ MonoBehaviour:
   reply: {fileID: 1162805645}
   talk: {fileID: 522953768}
   cardDistance: 0.55
-  cardYaw: 32
+  cardYaw: 14
   cardDrop: 0.3
   wakeWords:
   - calypso
   - calipso
   - kalypso
+  - kalipso
+  - calypsa
+  - collapso
+  - clypso
+  - galipso
   askWindow: 8
 --- !u!114 &952598046
 MonoBehaviour:
@@ -23033,7 +23038,7 @@ MonoBehaviour:
     witConfiguration: {fileID: 11400000, guid: f6ec162cbc0d39e4b82e1bf25f587afc, type: 2}
     minKeepAliveVolume: 0.0005
     minKeepAliveTimeInSeconds: 4
-    minTranscriptionKeepAliveTimeInSeconds: 1.2
+    minTranscriptionKeepAliveTimeInSeconds: 0.8
     maxRecordingTime: 15
     overrideTimeoutMs: 0
     soundWakeThreshold: 0.0005

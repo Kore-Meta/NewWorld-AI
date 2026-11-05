@@ -81,6 +81,10 @@ const commands = {
     fps = smooth ? 60 : 30;
     pc = new RTCPeerConnection({ iceServers: [], bundlePolicy: 'max-bundle' });   // LAN host candidates only
     pc.onconnectionstatechange = () => window.engine.event('connection', { state: pc && pc.connectionState });
+    // Typing from the headset's keyboard (protocol: "Typing"): a data channel in the same DTLS connection, so what is
+    // typed is encrypted and only the paired headset can send it. The main process decides whether it is typed.
+    const keys = pc.createDataChannel('keys', { ordered: true });
+    keys.onmessage = e => { if (typeof e.data === 'string' && e.data.length <= 2048) window.engine.event('keys', e.data); };
     for (const d of displays) await addTransceiver(d);
     statsTimer = setInterval(sendStats, 2000);
     return makeOffer();

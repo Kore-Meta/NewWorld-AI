@@ -230,18 +230,26 @@ namespace StudyEverywhere
         IEnumerator WalkTo(Vector3 goal, bool trot, float near)
         {
             goal.y = transform.position.y;
-            float best = float.MaxValue, sinceCloser = 0, stuck = 0, detourFor = 0; Vector3 detour = default;
+            float best = float.MaxValue, sinceCloser = 0, stuck = 0, detourFor = 0; Vector3 detour = default; int escapes = 0;
             float rate = (trot ? trotRate : walkRate) * (running ? runBoost : 1), full = (trot ? trotClipSpeed : walkClipSpeed) * rate;
             Gait(trot); steer = transform.forward;
             while (true)
             {
                 var to = goal - transform.position; to.y = 0; float d = to.magnitude;
                 if (d < near) break;
-                if (d < best - .04f) { best = d; sinceCloser = 0; } else if ((sinceCloser += Time.deltaTime) > 4) break;   // not getting closer: settle here
+                // not getting closer, or no way on: out of the corner the most open way and on again (twice), then settle here
+                if (d < best - .04f) { best = d; sinceCloser = 0; } else sinceCloser += Time.deltaTime;
+                if (sinceCloser > 4 || stuck > 1.5f)
+                {
+                    if (escapes++ >= 2) break;
+                    speed = 0; yield return Escape(goal, trot);
+                    best = float.MaxValue; sinceCloser = 0; stuck = 0; detourFor = 0; steer = transform.forward; Gait(trot);
+                    continue;
+                }
                 Vector3 dir;
                 if (detourFor > 0 && Clear(detour, .3f)) { dir = detour; detourFor -= Time.deltaTime; }
                 else { dir = Steer(to / d, Mathf.Min(d, .4f)); detourFor = 0; if (dir != Vector3.zero && Vector3.Angle(dir, to / d) > 20) { detour = dir; detourFor = .6f; } }
-                if (dir == Vector3.zero) { speed = 0; if ((stuck += Time.deltaTime) > 2.5f) break; if (animator) animator.speed = .3f; yield return null; continue; }
+                if (dir == Vector3.zero) { speed = 0; stuck += Time.deltaTime; if (animator) animator.speed = .3f; yield return null; continue; }
                 stuck = 0;
                 // the heading eased toward the steer's (a steer flicking between two clear ways frame by frame wobbled her
                 // body left and right: the user, Oct 26 morning)
@@ -325,13 +333,55 @@ namespace StudyEverywhere
 
         // ---- not bumping into things: solid colliders (furniture, walls, its own home's rim excepted when hopping)
         readonly RaycastHit[] hits = new RaycastHit[16];
-        bool Clear(Vector3 dir, float dist)
+        bool Clear(Vector3 dir, float dist) => Room(dir, dist) >= dist;
+        // How far it can go that way before its chest meets something (dist when nothing). Something it already touches
+        // (the cast reports it at distance 0) only blocks the ways into it: with every way counted as blocked, a cub that
+        // brushed a cushion or a table leg froze there and gave up on every walk after (headset review, Nov 4: Hori stuck
+        // in one place, not coming when asked).
+        float Room(Vector3 dir, float dist)
         {
             var o = transform.position + Vector3.up * chestHeight;
-            if (!followGround) return !(Physics.SphereCast(o, bodyRadius, dir, out var hit, dist, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) && !hit.transform.IsChildOf(transform) && !hit.collider.GetComponentInParent<PetToy>());
             int n = Physics.SphereCastNonAlloc(o, bodyRadius, dir, hits, dist, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore);
-            for (int i = 0; i < n; i++) if (!hits[i].transform.IsChildOf(transform) && !hits[i].collider.GetComponent<TeleportationArea>() && !hits[i].collider.GetComponentInParent<PetToy>()) return false;   // a floor or a step to walk onto doesn't block, nor a toy (it is what it is going for)
-            return true;
+            float room = dist;
+            for (int i = 0; i < n; i++)
+            {
+                var h = hits[i];
+                if (h.transform.IsChildOf(transform) || h.collider.GetComponentInParent<PetToy>()) continue;   // nor a toy (it is what it is going for)
+                if (followGround && h.collider.GetComponent<TeleportationArea>()) continue;   // a floor or a step to walk onto doesn't block
+                if (h.distance <= 0)
+                {
+                    var into = h.collider.bounds.center - o; into.y = 0;
+                    if (Vector3.Dot(into, dir) <= 0) continue;   // touching it already: stepping away is free
+                }
+                room = Mathf.Min(room, h.distance);
+            }
+            return room;
+        }
+
+        // Boxed in (no way on, or no nearer for a while): out the most open way, half a metre or so, preferring the side
+        // toward where it is going, so the walk can carry on from there.
+        IEnumerator Escape(Vector3 goal, bool trot)
+        {
+            var to = goal - transform.position; to.y = 0; to = to.sqrMagnitude > 1e-4f ? to.normalized : transform.forward;
+            Vector3 best = Vector3.zero; float bestScore = 0, bestRoom = 0;
+            for (int i = 0; i < 16; i++)
+            {
+                var d = Quaternion.Euler(0, i * 22.5f, 0) * to; float room = Room(d, .6f);
+                float score = room + .15f * Vector3.Dot(d, to);
+                if (room > .12f && score > bestScore) { best = d; bestScore = score; bestRoom = room; }
+            }
+            if (best == Vector3.zero) yield break;
+            yield return Turn(Quaternion.LookRotation(best).eulerAngles.y, true);
+            Gait(trot);
+            float full = trot ? trotClipSpeed * trotRate : walkClipSpeed * walkRate;
+            if (animator) animator.speed = trot ? trotRate : walkRate;
+            for (float gone = 0, go = bestRoom - .05f; gone < go; )
+            {
+                float step = Mathf.Min(full * Time.deltaTime, go - gone);
+                transform.position += best * step; gone += step;
+                if (followGround && Ground(out float gy)) { var p = transform.position; p.y = Mathf.Lerp(p.y, gy, 1 - Mathf.Exp(-Time.deltaTime * 10)); transform.position = p; }
+                yield return null;
+            }
         }
         // the walkable floor under it (the highest teleport area within reach of its paws: a step of up to 60 cm)
         bool Ground(out float y) => Ground(transform.position, out y);
@@ -345,7 +395,7 @@ namespace StudyEverywhere
         Vector3 Steer(Vector3 want, float look)
         {
             if (Clear(want, look)) return want;
-            foreach (float a in new[] { 25f, -25f, 50f, -50f, 75f, -75f, 100f, -100f, 125f, -125f })
+            foreach (float a in new[] { 25f, -25f, 50f, -50f, 75f, -75f, 100f, -100f, 125f, -125f, 150f, -150f, 180f })   // round to backing out of a corner
             {
                 var d = Quaternion.Euler(0, a, 0) * want;
                 if (Clear(d, look)) return d;

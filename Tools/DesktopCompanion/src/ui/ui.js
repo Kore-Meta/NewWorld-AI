@@ -46,11 +46,13 @@ function renderIdle(s) {
   $('computer-name').textContent = s.computerName;
   $('discoverable').checked = s.discoverable;
   $('smooth-motion').checked = s.smoothMotion;
+  $('allow-typing').checked = s.allowTyping;
   $('notice').hidden = !s.notice;
   $('notice-text').textContent = s.notice;
 }
 $('discoverable').onchange = e => window.desktop.action('setDiscoverable', { on: e.target.checked });
 $('smooth-motion').onchange = e => window.desktop.action('setSmoothMotion', { on: e.target.checked });
+for (const id of ['allow-typing', 'allow-typing-live']) $(id).onchange = e => window.desktop.action('setAllowTyping', { on: e.target.checked });
 $('notice-close').onclick = () => window.desktop.action('dismissNotice');
 
 // ---------- code ----------
@@ -182,6 +184,7 @@ const CONNECTION_TEXT = {
 };
 
 function renderSharing(s) {
+  $('allow-typing-live').checked = s.allowTyping;
   const live = s.shared.filter(d => !d.stopped).length;
   $('live-text').textContent = `Sharing ${plural(live, 'display', 'displays')} with ${s.device}`;
   $('connection-text').textContent = CONNECTION_TEXT[s.connection] || (s.connection ? `Connection: ${s.connection}` : '');

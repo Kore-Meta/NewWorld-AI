@@ -21,6 +21,8 @@ namespace StudyEverywhere
         public Vector2 breezeInterval = new Vector2(30, 70);
         [Tooltip("Grass sway between gusts (0..1 of a full gust).")]
         [Range(0, 1)] public float calm = 0.08f;
+        // set by Seabreeze's SeaShore: the surf bed fades out while Calypso holds the waves calm (1: as usual)
+        [NonSerialized] public float bedScale = 1;
 
         const string VolumeKey = "StudyEverywhere.NatureVolume";
         static readonly int GustId = Shader.PropertyToID("_RestGust");
@@ -41,7 +43,7 @@ namespace StudyEverywhere
         void Update()
         {
             float v = Volume, now = Time.time;
-            if (bed) bed.volume = bedLevel * v;
+            if (bed) bed.volume = bedLevel * v * bedScale;
             for (int i = 0; i < crickets.Length; i++)
             {
                 if (!crickets[i] || chirps == null || chirps.Length == 0 || now < nextChirp[i]) continue;

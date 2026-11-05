@@ -2,6 +2,9 @@
 //
 //   MUSE_API_KEY   the Model API key (MODEL_API_KEY, as Meta's docs call it, works too)
 //   MUSE_MODEL     default muse-spark-1.3
+//   MUSE_REASONING how much Muse thinks before it answers: default "minimal" (it always reasons, and that thinking was
+//                  most of a 4-7 s reply; headset review, Nov 4). If Muse refuses the setting, the relay falls back to
+//                  "low" by itself and stays there.
 //
 // Conversations are kept as content blocks (text, tool_use, tool_result); ask() takes and gives that shape and
 // translates to and from Muse's OpenAI-compatible Chat Completions format, so each character's actions (tool calls)
@@ -48,23 +51,30 @@ function toChat(system, messages) {
   return out;
 }
 
+let reasoning = env.MUSE_REASONING || "minimal";
+
 async function askChat(provider, system, tools, messages) {
   const p = PROVIDERS[provider];
   const functions = (tools ?? []).filter(t => !t.type)   // typed server tools (web search) are not Muse's
     .map(t => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema, strict: !!t.strict } }));
-  const res = await fetch(p.url, {
+  const post = effort => fetch(p.url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${p.key}` },
     body: JSON.stringify({
       model: p.model,
       messages: toChat(system, messages),
       max_completion_tokens: 4000,   // counts the reasoning as well as the words (Muse always reasons)
-      reasoning_effort: "low",
+      reasoning_effort: effort,
       ...(functions.length ? { tools: functions } : {}),
     }),
     signal: AbortSignal.timeout(90000),
   });
-  const data = await res.json().catch(() => ({}));
+  let res = await post(reasoning), data = await res.json().catch(() => ({}));
+  if (res.status === 400 && reasoning !== "low" && /reasoning/i.test(JSON.stringify(data?.error ?? data))) {
+    console.log(`[muse] reasoning_effort "${reasoning}" refused; using "low"`);
+    reasoning = "low";
+    res = await post(reasoning); data = await res.json().catch(() => ({}));
+  }
   if (!res.ok) throw new AIError(provider, res.status, String(data?.error?.message ?? res.statusText));
   const choice = data.choices?.[0] ?? {}, message = choice.message ?? {};
   const content = [];

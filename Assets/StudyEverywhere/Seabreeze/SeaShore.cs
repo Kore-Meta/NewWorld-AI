@@ -24,12 +24,14 @@ namespace StudyEverywhere
         public static bool Rising { get; private set; }
 
         // Calm (Calypso, on request): the waves die down over calmSeconds and the water lies still at its resting level, until
-        // they are let run again.
+        // they are let run again. All of the sea goes quiet with it (headset review, Nov 4: "stop the waves" barely showed,
+        // and the surf went on): the run-up, the lagoon's swell and ripples (_SeaCalm, Seabreeze Water) and the surf sound.
         public bool Calm { get; set; }
         [Tooltip("Seconds for the waves to die down, or build up again.")] public float calmSeconds = 4;
+        [Tooltip("The surf sound (the ambience bed) fades out as the sea calms (found in the scene when empty).")] public RestAmbience surf;
         float calm;
 
-        static readonly int LevelId = Shader.PropertyToID("_SeaLevel"), WetId = Shader.PropertyToID("_SeaWet"), RipplesId = Shader.PropertyToID("_SeaRipples");
+        static readonly int LevelId = Shader.PropertyToID("_SeaLevel"), WetId = Shader.PropertyToID("_SeaWet"), RipplesId = Shader.PropertyToID("_SeaRipples"), CalmId = Shader.PropertyToID("_SeaCalm");
         readonly Vector4[] ripples = new Vector4[4];
         readonly List<Vector3> tips = new List<Vector3>();
         readonly Dictionary<int, (Vector3 at, float time)> lastRipple = new Dictionary<int, (Vector3, float)>();
@@ -47,8 +49,8 @@ namespace StudyEverywhere
             return rest + runUp * amp * shape;
         }
 
-        void OnEnable() { Shader.SetGlobalVectorArray(RipplesId, ripples); Apply(rest, rest); }
-        void OnDisable() { Shader.SetGlobalFloat(LevelId, rest); Shader.SetGlobalFloat(WetId, rest); }
+        void OnEnable() { Shader.SetGlobalVectorArray(RipplesId, ripples); Apply(rest, rest); Shader.SetGlobalFloat(CalmId, 0); if (!surf) surf = FindAnyObjectByType<RestAmbience>(); }
+        void OnDisable() { Shader.SetGlobalFloat(LevelId, rest); Shader.SetGlobalFloat(WetId, rest); Shader.SetGlobalFloat(CalmId, 0); if (surf) surf.bedScale = 1; }
 
         void Apply(float level, float wetLevel)
         {
@@ -59,7 +61,10 @@ namespace StudyEverywhere
         void Update()
         {
             calm = Mathf.MoveTowards(calm, Calm ? 1 : 0, Time.deltaTime / Mathf.Max(.01f, calmSeconds));
-            float t = Time.timeSinceLevelLoad, level = Mathf.Lerp(LevelAt(t), rest, Mathf.SmoothStep(0, 1, calm));
+            float still = Mathf.SmoothStep(0, 1, calm);
+            float t = Time.timeSinceLevelLoad, level = Mathf.Lerp(LevelAt(t), rest, still);
+            Shader.SetGlobalFloat(CalmId, still);
+            if (surf) surf.bedScale = 1 - still;
             Rising = level > previous; previous = level;
             wet = Mathf.Max(level, wet < -0.5f ? level : wet - drying * Time.deltaTime);
             Apply(level, wet);

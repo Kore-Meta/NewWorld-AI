@@ -45,7 +45,8 @@ namespace StudyEverywhere
         public Button talk;
         [Tooltip("Where she floats: metres ahead (past the wrist menu, within reach), degrees to the side (negative: left), metres below the eyes.")]
         public float cardDistance = .6f, cardYaw = 0, cardDrop = .05f;
-        [Tooltip("Words that address Calypso.")] public string[] wakeWords = { "calypso", "calipso", "kalypso" };
+        [Tooltip("Words that address Calypso (with the ways speech-to-text tends to mishear her name).")]
+        public string[] wakeWords = { "calypso", "calipso", "kalypso", "kalipso", "calypsa", "collapso", "clypso", "galipso" };
         [Tooltip("After the Talk pill, the next sentence is for Calypso even without her name (seconds).")] public float askWindow = 8;
         [Header("Voice-first (Nov 3 design review): the orb is the interface")]
         [Tooltip("Show her words as captions beside her orb. Off: voice only. They always show when she can't speak the language.")]
@@ -56,7 +57,8 @@ namespace StudyEverywhere
         [Tooltip("Seconds she shows Acting for each change to the beach (she stays quiet meanwhile).")] public float actingFor = 2.2f;
         [Tooltip("After she echoes a request with several actions back, seconds the person has to say “wait”.")] public float waitWindow = 2.5f;
         [Tooltip("Seconds she drifts aside after pointing at something, so it isn't behind her.")] public float asideFor = 8;
-        [Tooltip("Degrees further out she drifts when aside, and when docked at rest.")] public float asideYaw = 22, dockYaw = 14;
+        [Tooltip("Degrees further out she drifts when aside, and when docked at rest (headset review, Nov 4: kept small, as far out it hurt to look at her).")]
+        public float asideYaw = 10, dockYaw = 6;
         [Tooltip("Seconds of quiet before she docks small at the edge of view (0: never).")] public float dockAfter = 25;
         [Tooltip("Her size when docked, against her full size.")] [Range(.3f, 1)] public float dockScale = .6f;
         [Tooltip("Seconds she takes to appear when the place opens.")] public float arriveFor = 1.6f;
@@ -175,7 +177,11 @@ namespace StudyEverywhere
             float yaw = cardYaw + outward;
             var want = user.position + Quaternion.Euler(0, yaw, 0) * f.normalized * cardDistance + Vector3.down * cardDrop;
             var toCard = Vector3.ProjectOnPlane(card.position - user.position, Vector3.up);
-            if (snap || Mathf.Abs(outward - placedOutward) > 2 || Vector3.Angle(toCard, Quaternion.Euler(0, yaw, 0) * f) > 32 || Mathf.Abs(card.position.y - want.y) > .25f) { cardMoving = true; placedOutward = outward; }
+            // she comes along when the person walks or teleports about the beach (headset review, Nov 4: she stayed
+            // behind), not only when they turn: further than a few steps off, she glides over; far off, she is there at once
+            float off = Vector3.ProjectOnPlane(card.position - want, Vector3.up).magnitude;
+            if (off > 3) snap = true;
+            if (snap || off > .3f || Mathf.Abs(outward - placedOutward) > 2 || Vector3.Angle(toCard, Quaternion.Euler(0, yaw, 0) * f) > 32 || Mathf.Abs(card.position.y - want.y) > .25f) { cardMoving = true; placedOutward = outward; }
             if (cardMoving) cardTarget = want;
             card.position = snap ? want : Vector3.Lerp(card.position, cardTarget, Time.deltaTime * 3);
             if (cardMoving && Vector3.Distance(card.position, cardTarget) < .01f) cardMoving = false;
@@ -452,6 +458,7 @@ namespace StudyEverywhere
 
                 var todo = new List<string>();
                 if (actions != null) foreach (var a in actions) if (CalypsoCues.Look(a, out _, out _)) todo.Add(a);
+                Debug.Log($"Calypso: actions [{string.Join(", ", todo)}]");   // what she does to the beach only, never what was said
 
                 // 04: several actions are echoed back in order, with a moment to say "wait"; one goes straight ahead
                 CalypsoCues.Handle[] steps = null;

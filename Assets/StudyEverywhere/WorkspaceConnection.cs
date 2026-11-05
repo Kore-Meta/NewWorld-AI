@@ -256,7 +256,13 @@ namespace StudyEverywhere
             displays[d.id] = shown;
             shown.surface = ScreenSurface.Create(d.name, d.texture);
             if (mainId == 0 || d.primary && !displays[mainId].info.primary) mainId = d.id;
-            if (!bar) bar = ScreenControls.Create(BarStyle(), () => Resize(-0.1f), () => Resize(0.1f), BringToMe, StopSharing, StopDisplay);
+            if (!bar)
+            {
+                bar = ScreenControls.Create(BarStyle(), () => Resize(-0.1f), () => Resize(0.1f), KeyboardButton ? ToggleKeyboard : null, BringToMe, StopSharing, StopDisplay);
+                keyboard = bar.gameObject.AddComponent<ScreenKeyboard>();
+                keyboard.source = screen as WebRtcScreenSource;
+                keyboard.note = text => { if (bar) bar.Note(text); };
+            }
             if (state == State.Connecting) Enter(State.Connected);
             else Summarize();
             Arrange();
@@ -284,6 +290,13 @@ namespace StudyEverywhere
             ScreenSize = Mathf.Round((ScreenSize + step) * 10) / 10;
             Arrange();
         }
+
+        // The bar's Keyboard: the headset's system keyboard, typing on the computer (ScreenKeyboard).
+        ScreenKeyboard keyboard;
+        // Off until there is a keyboard that shows: Horizon OS keeps its system keyboard from OpenXR apps without Meta's
+        // Core SDK (headset test, Nov 4: the request reached it, nothing appeared). The typing path itself works.
+        const bool KeyboardButton = false;
+        void ToggleKeyboard() { if (keyboard) keyboard.Toggle(); }
 
         // The screens (and the bar) come round to face wherever the user now sits and looks.
         void BringToMe()

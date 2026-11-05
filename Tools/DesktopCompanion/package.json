@@ -1,7 +1,7 @@
 {
   "name": "newworld-desktop",
   "productName": "New World Desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shares the displays of a Windows PC with New World on Meta Quest, over the local network only.",
   "author": "KORE META",
   "license": "UNLICENSED",

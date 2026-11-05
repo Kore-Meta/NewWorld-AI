@@ -10,8 +10,8 @@ namespace StudyEverywhere
 {
     // The one control bar for every shared screen, in the place's own card style (cloned from the workspace card): it
     // floats low in front of the seat, tilted up like a tablet above the keyboard, so it stays in reach however big the
-    // screens are. Top row: what is shared and whether it is live, then Smaller / size / Bigger, Bring to me and Stop
-    // sharing. Bottom row: one chip per display, live or paused, each with its own Stop.
+    // screens are. Top row: what is shared and whether it is live, then Smaller / size / Bigger, Keyboard (typing on the
+    // computer, ScreenKeyboard), Bring to me and Stop sharing. Bottom row: one chip per display, live or paused, each with its own Stop.
     public sealed class ScreenControls : MonoBehaviour
     {
         // Styled pieces of the workspace card, cloned so the bar matches the place's menus.
@@ -25,16 +25,17 @@ namespace StudyEverywhere
         }
 
         const float CanvasScale = 0.0005f;   // metres per canvas unit, as the place's panels
-        static readonly Vector2 Size = new Vector2(1560, 230);
+        static readonly Vector2 Size = new Vector2(1800, 230);
 
         Style style;
         RectTransform root, chipRow;
         Image dot;
-        TMP_Text summary, sizeLabel;
+        TMP_Text summary, sizeLabel, note;
+        float noteUntil = -1;
         readonly Dictionary<int, (Image dot, TMP_Text label)> chips = new Dictionary<int, (Image, TMP_Text)>();
         Action<int> stopOne;
 
-        public static ScreenControls Create(Style style, UnityAction smaller, UnityAction bigger, UnityAction bringHere, UnityAction stopAll, Action<int> stopOne)
+        public static ScreenControls Create(Style style, UnityAction smaller, UnityAction bigger, UnityAction keyboard, UnityAction bringHere, UnityAction stopAll, Action<int> stopOne)
         {
             var go = new GameObject("Shared screens | controls", typeof(RectTransform));
             var c = go.AddComponent<ScreenControls>();
@@ -50,10 +51,11 @@ namespace StudyEverywhere
             c.Clone(style.trim, "Brass trim", Vector2.zero, Size);
             c.Clone(style.card, "Card", Vector2.zero, Size - new Vector2(8, 8));
 
-            // Top row, right to left: Stop sharing, Bring to me, Bigger, the size, Smaller.
+            // Top row, right to left: Stop sharing, Bring to me, Keyboard, Bigger, the size, Smaller.
             float right = Size.x / 2 - 24, top = 46;
             right = c.Pill("Stop sharing", 250, right, top, stopAll);
             right = c.Pill("Bring to me", 230, right - 18, top, bringHere);
+            if (keyboard != null) right = c.Pill("Keyboard", 210, right - 18, top, keyboard);   // (none: no keyboard in this build)
             right = c.Pill("+  Bigger", 200, right - 18, top, bigger);
             c.sizeLabel = c.Text("Size 100%", new Vector2(right - 75, top), new Vector2(150, 50), 24, UIStyle.Ink, TextAlignmentOptions.Center);
             right = c.Pill("–  Smaller", 210, right - 150, top, smaller);
@@ -67,6 +69,9 @@ namespace StudyEverywhere
             c.chipRow.SetParent(c.root, false);
             c.chipRow.anchoredPosition = new Vector2(0, -52);
             c.chipRow.sizeDelta = new Vector2(Size.x - 48, 80);
+            c.note = c.Text("", new Vector2(0, -52), new Vector2(Size.x - 60, 70), 24, UIStyle.Ink, TextAlignmentOptions.Center);
+            c.note.textWrappingMode = TextWrappingModes.Normal;
+            c.note.gameObject.SetActive(false);
             return c;
         }
 
@@ -88,6 +93,23 @@ namespace StudyEverywhere
             var c = UIStyle.Live;
             c.a = 0.55f + 0.45f * Mathf.Cos(time * 3);
             dot.color = c;
+        }
+
+        // A short message in place of the display chips for a few seconds (why the keyboard can't type, say).
+        public void Note(string text, float seconds = 6)
+        {
+            note.text = text;
+            note.gameObject.SetActive(true);
+            chipRow.gameObject.SetActive(false);
+            noteUntil = Time.time + seconds;
+        }
+
+        void Update()
+        {
+            if (noteUntil < 0 || Time.time < noteUntil) return;
+            noteUntil = -1;
+            note.gameObject.SetActive(false);
+            chipRow.gameObject.SetActive(true);
         }
 
         public void SetSize(float percent) => sizeLabel.text = Localization.Format("Size {0}%", Mathf.RoundToInt(percent));

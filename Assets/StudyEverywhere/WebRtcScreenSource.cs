@@ -82,6 +82,7 @@ namespace StudyEverywhere
         readonly Dictionary<string, Link> links = new Dictionary<string, Link>();   // by PC address, while pairing
         Link session;
         RTCPeerConnection pc;
+        RTCDataChannel keys;   // typing (protocol: Typing): opened by the computer in its first offer
         readonly Dictionary<int, Display> displays = new Dictionary<int, Display>();
         readonly Dictionary<string, int> midToDisplay = new Dictionary<string, int>();
         Coroutine webrtcUpdate, polling;
@@ -103,6 +104,26 @@ namespace StudyEverywhere
         {
             session?.Send(new JObject { ["type"] = "stop", ["reason"] = "Sharing was stopped in the headset." });
             Close(null);
+        }
+
+        // ---- Typing ------------------------------------------------------------------------------------------------
+        // The headset's keyboard types on the computer, into the window in focus there, when its New World Desktop allows
+        // it. It goes over a data channel in the video's own DTLS connection: encrypted, and only between the two paired
+        // devices. Older desktop apps open no channel, so CanType stays false.
+
+        public bool CanType => keys != null && keys.ReadyState == RTCDataChannelState.Open;
+
+        public void TypeText(string text)
+        {
+            if (!CanType || string.IsNullOrEmpty(text)) return;
+            for (int i = 0; i < text.Length; i += 500)
+                keys.Send(new JObject { ["type"] = "text", ["text"] = text.Substring(i, Math.Min(500, text.Length - i)) }.ToString(Newtonsoft.Json.Formatting.None));
+        }
+
+        public void TypeKey(string key, int times = 1)
+        {
+            if (!CanType || times <= 0) return;
+            keys.Send(new JObject { ["type"] = "key", ["key"] = key, ["times"] = times }.ToString(Newtonsoft.Json.Formatting.None));
         }
 
         public void StopDisplay(int id)
@@ -352,6 +373,7 @@ namespace StudyEverywhere
                 var config = new RTCConfiguration { iceServers = new RTCIceServer[0] };   // host candidates only: the stream stays on the LAN
                 pc = new RTCPeerConnection(ref config);
                 pc.OnTrack = e => { if (e.Track is VideoStreamTrack v) OnTrack(v, e.Transceiver.Mid); };
+                pc.OnDataChannel = channel => { if (channel.Label == "keys") keys = channel; else channel.Close(); };
                 pc.OnConnectionStateChange = s =>
                 {
                     Debug.Log("[Screens] Connection " + s);
@@ -465,7 +487,8 @@ namespace StudyEverywhere
             foreach (var d in displays.Values) d.track?.Dispose();
             displays.Clear();
             midToDisplay.Clear();
-            if (pc != null) { pc.OnTrack = null; pc.OnConnectionStateChange = null; pc.Close(); pc.Dispose(); pc = null; }
+            if (keys != null) { keys.Close(); keys.Dispose(); keys = null; }
+            if (pc != null) { pc.OnDataChannel = null; pc.OnTrack = null; pc.OnConnectionStateChange = null; pc.Close(); pc.Dispose(); pc = null; }
             if (wasActive && reason != null) Ended?.Invoke(reason);
         }
 

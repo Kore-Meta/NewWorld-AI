@@ -42,6 +42,7 @@ Shader "StudyEverywhere/Seabreeze Water"
                 float _RippleScale, _RippleStrength, _Swell;
             CBUFFER_END
             float _SeaLevel;
+            float _SeaCalm;   // 0..1: Calypso calming the sea (SeaShore): the swell flattens and the ripples settle to a faint stir
             float4 _SeaRipples[4];
 
             struct A { float4 positionOS : POSITION; float2 uv1 : TEXCOORD1; UNITY_VERTEX_INPUT_INSTANCE_ID };
@@ -51,7 +52,7 @@ Shader "StudyEverywhere/Seabreeze Water"
             {
                 float t = _Time.y;
                 float s = sin(dot(xz, float2(0.08, 0.55)) - t * 0.9) * 0.6 + sin(dot(xz, float2(-0.21, 0.37)) - t * 1.3) * 0.3 + sin(dot(xz, float2(0.5, 0.2)) - t * 1.7) * 0.1;
-                return s * _Swell * saturate(depth * 0.8);
+                return s * _Swell * saturate(depth * 0.8) * (1 - _SeaCalm);
             }
 
             V vert(A i)
@@ -79,7 +80,7 @@ Shader "StudyEverywhere/Seabreeze Water"
                 half2 s2 = SAMPLE_TEXTURE2D(_Noise, sampler_Noise, q * 0.83 + float2(-0.019, 0.011) * t).rg - 0.5;
                 half2 s3 = SAMPLE_TEXTURE2D(_Noise, sampler_Noise, q * 2.3 + float2(0.027, -0.017) * t).rg - 0.5;
                 half fade = 1 / (1 + dist * 0.03);
-                half2 slope = (s1 + s2 * 0.7 + s3 * 0.45 * fade) * _RippleStrength * (0.35 + 0.65 * fade);
+                half2 slope = (s1 + s2 * 0.7 + s3 * 0.45 * fade) * _RippleStrength * (0.35 + 0.65 * fade) * (1 - 0.8 * _SeaCalm);
                 // Rings from a hand in the water.
                 for (int k = 0; k < 4; k++)
                 {

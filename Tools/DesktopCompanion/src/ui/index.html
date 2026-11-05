@@ -41,6 +41,14 @@
         <small>Costs headset battery and frame rate. Off sends 30 fps, which suits text and documents.</small>
       </span>
     </label>
+    <label class="switch-row">
+      <input type="checkbox" id="allow-typing">
+      <span class="switch" aria-hidden="true"></span>
+      <span>
+        <strong>Let the headset type</strong>
+        <small>The keyboard in the headset types into the window in focus on this computer. Not into apps run as administrator.</small>
+      </span>
+    </label>
   </section>
 
   <!-- A headset wants to connect: the code -->
@@ -83,6 +91,14 @@
     </div>
     <p id="connection-text" class="lead"></p>
     <ul id="shared-list" class="shared"></ul>
+    <label class="switch-row inline">
+      <input type="checkbox" id="allow-typing-live">
+      <span class="switch" aria-hidden="true"></span>
+      <span>
+        <strong>Let the headset type</strong>
+        <small>The keyboard in the headset types into the window in focus on this computer. Not into apps run as administrator.</small>
+      </span>
+    </label>
     <button class="stop" id="stop-sharing">Stop sharing</button>
     <p class="fine">You can also stop from the New World icon in the taskbar tray.</p>
   </section>

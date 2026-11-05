@@ -23759,7 +23759,7 @@ MonoBehaviour:
     witConfiguration: {fileID: 11400000, guid: f6ec162cbc0d39e4b82e1bf25f587afc, type: 2}
     minKeepAliveVolume: 0.0005
     minKeepAliveTimeInSeconds: 4
-    minTranscriptionKeepAliveTimeInSeconds: 1.2
+    minTranscriptionKeepAliveTimeInSeconds: 0.8
     maxRecordingTime: 15
     overrideTimeoutMs: 0
     soundWakeThreshold: 0.0005

@@ -27,6 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROVIDERS, available, DEFAULT, pick, ask as askAI } from "./llm.mjs";
+import { weather, news } from "./lookups.mjs";
 
 const PORT = +(process.env.PORT || 8787);
 const APP_TOKEN = process.env.CAT_APP_TOKEN || "";
@@ -147,6 +148,7 @@ const PETS = {
     acting: "greeted or glad to see someone: chuff; called over or asked to come: come_here; asked to go somewhere: go_to; asked to run, run around, play chase or burn off energy: run_around (you can: say yes and do it); trusting or content: slow_blink; curious about a smell: sniff; asked to sit: sit; playful: stalk or pounce; tidying up or thinking: groom; tired or asked to nap: sleep",
     place: "You can walk, trot and run about the tea room and out through the west doorway into the courtyard (to the window, the moon jar, the veranda, the pond or the far side of the pond), have a playful run around the café, come over to the person, and go back to your spot between the tea tables; you sleep in your spot.",
     wordless: "a wordless cub's reaction",
+    lookups: "You can also look things up for the person with the weather and news tools: the weather (Seoul's, where your café is, unless they name another city) and today's headlines from Yonhap, Korea's news agency. Use them whenever they ask about the weather or the news, then tell it in your own gentle words: two or three items at most for the news, naming Yonhap, plainly and without opinions on politics.",
     declined: { reply: "Mm, let's talk about something else.", actions: ["slow_blink"] },
     tools: [
       tool("wake", "Wake up, if you are asleep, with a slow stretch."),
@@ -171,6 +173,8 @@ const PETS = {
       tool("yawn", "A big cub yawn."),
       tool("stretch", "A long stretch, front then back."),
       tool("mew", "A small, soft mew."),
+      tool("weather", "Look up the weather now, today and tomorrow (Open-Meteo). Leave city out for Seoul, where your café is.", { city: { type: "string", description: "A city the person asked about; leave out for Seoul." } }),
+      tool("news", "Read today's latest headlines from Yonhap News Agency (Korea's national news agency, in English)."),
     ],
   },
 };
@@ -209,12 +213,14 @@ const petSystem = id => PETS[id].system ?? `${PETS[id].persona}
 You are talking out loud, in person, inside the café. Your words appear in a speech bubble and are spoken aloud in ${PETS[id].voice}, so:
 - Reply in one or two short sentences (rarely three), in plain spoken language: no lists, markdown, emoji or stage directions. ${PETS[id].manner}, but genuinely helpful: if the person asks something real (a question about their studies, a fact, encouragement, a plan for their session), answer it briefly and clearly.
 - Always reply in English, whatever language the person uses: your voice and speech bubble can only say English. If asked for another language, you may teach a word or two, written in English letters.
-- Never claim to see or do things you can't; you only know what the café description tells you. ${PETS[id].place}
+- Never claim to see or do things you can't; you only know what the café description tells you. ${PETS[id].place}${PETS[id].lookups ? " " + PETS[id].lookups : ""}
 - Never ask for personal details. Decline politely anything harmful, hateful, sexual or dangerous, and never give medical, legal or financial advice.
 
 You can act with the tools: use them when it fits what you say or what you were asked (${PETS[id].acting}). Speak as well as act; acting alone is fine only for ${PETS[id].wordless}.
 Each message starts with a [café] line giving the person's local date and time and describing what you are doing right now; it is for you only: never say it or repeat it.`;
 const petTools = id => PETS[id].tools;
+// Tools the relay runs itself (looking things up), whose results go back to the AI rather than to the headset as actions.
+const LOOKUPS = { weather: input => weather(input.city), news: () => news("yonhap", 6) };
 const PET_PER_MINUTE = 12;
 const busyPet = new Set(), petRate = new Map();
 const petKey = (id, session) => `pet:${id}:${session || "anonymous"}`;
@@ -241,7 +247,7 @@ async function petTalk(id, session, text, state, now, history, provider) {
   const ask = () => askAI(provider, { system: petSystem(id), tools: c.tools, messages: c.messages });
   const started = Date.now();
   let reply = "", actions = [], usage = { input: 0, cached: 0, output: 0 };
-  for (let round = 0; round < 3; round++) {
+  for (let round = 0; round < 4; round++) {
     const message = await ask();
     if (message.stop_reason === "refusal") {
       c.messages.pop();
@@ -255,9 +261,18 @@ async function petTalk(id, session, text, state, now, history, provider) {
     // (Muse sometimes echoes the context tag the message starts with: never spoken)
     reply = `${reply} ${unecho(said, state)}`.replace(/\s+/g, " ").replace(/ ([,.!?;:])/g, "$1").trim();
     const calls = message.content.filter(b => b.type === "tool_use");
-    actions.push(...calls.map(b => PETS[id].command ? PETS[id].command(b.name, b.input ?? {}) : b.input?.place ? `${b.name} ${b.input.place}` : b.name));
+    const looked = calls.filter(b => LOOKUPS[b.name]), acts = calls.filter(b => !LOOKUPS[b.name]);
+    actions.push(...acts.map(b => PETS[id].command ? PETS[id].command(b.name, b.input ?? {}) : b.input?.place ? `${b.name} ${b.input.place}` : b.name));
+    if (looked.length && round < 3) {
+      // looked up here and handed back for the answer (a "let me see" said meanwhile gives way to it)
+      const found = await Promise.all(looked.map(b => LOOKUPS[b.name](b.input ?? {})));
+      reply = "";
+      c.messages.push({ role: "user", content: [...looked.map((b, i) => ({ type: "tool_result", tool_use_id: b.id, content: found[i] })), ...acts.map(b => ({ type: "tool_result", tool_use_id: b.id, content: "done" }))] });
+      c.pendingToolIds = [];
+      continue;
+    }
     c.pendingToolIds = calls.map(b => b.id);
-    if (reply || message.stop_reason !== "tool_use" || round === 2) break;
+    if (reply || message.stop_reason !== "tool_use" || round === 3) break;
     c.messages.push({ role: "user", content: calls.map(b => ({ type: "tool_result", tool_use_id: b.id, content: "done" })) });
     c.pendingToolIds = [];
   }

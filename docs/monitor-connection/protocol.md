@@ -109,6 +109,18 @@ terminated by `\n`. Unknown message types are ignored. Either side closing the s
 | `{"type":"stop","reason":"..."}` | either | End the whole session. The PC stops all capture. |
 | `{"type":"ping"}` / `{"type":"pong"}` | either | Every 5 s; 15 s without any message ends the session. |
 
+### Typing
+
+The PC opens a data channel labelled `keys` (ordered) in its first offer, so it rides in the same DTLS connection as the video: encrypted, and only between the two devices whose fingerprints the code signed. The headset sends, as JSON text messages:
+
+| Message | Meaning |
+|---|---|
+| `{"type":"text","text":"..."}` | Type this text (at most 1000 characters; `
+` is Enter, `	` is Tab). |
+| `{"type":"key","key":"Backspace","times":2}` | Press a key 1-200 times: `Backspace`, `Tab`, `Enter`, `Escape`, `Left`, `Up`, `Right`, `Down` or `Delete`. |
+
+The PC types them into the window in focus only while sharing and while its "Let the headset type" switch is on (the default), and ignores anything else. Windows keeps them out of apps running as administrator. Nothing typed is logged. Desktop apps before 1.1.0 open no channel; the headset then says to update.
+
 ## Privacy
 
 - Video and signalling never leave the local network; there is no server of ours (or anyone's) in the path.

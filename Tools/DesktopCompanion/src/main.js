@@ -10,6 +10,7 @@ const { Beacon } = require('./discovery');
 const { SignalServer, MAX_TRIES } = require('./signalling');
 const { DisplayBook, wireDisplay } = require('./displays');
 const monitors = require('./monitors');
+const typing = require('./typing');
 
 // Plain LAN host candidates instead of mDNS names: the headset resolves nothing, it just connects to 192.168.x.y.
 app.commandLine.appendSwitch('disable-features', 'WebRtcHideLocalIpsWithMdns');
@@ -27,6 +28,7 @@ const state = {
   computerName: COMPUTER_NAME,
   discoverable: true,
   smoothMotion: false,      // 60 fps instead of 30; costs headset battery and frame rate
+  allowTyping: true,        // the headset's keyboard types into the window in focus here (protocol: Typing)
   device: '',
   triesLeft: MAX_TRIES,
   codeError: '',
@@ -38,7 +40,7 @@ const state = {
   error: '',
 };
 
-// ---------- settings (the two switches; kept in the user's app data folder) ----------
+// ---------- settings (the three switches; kept in the user's app data folder) ----------
 
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 function loadSettings() {
@@ -46,10 +48,11 @@ function loadSettings() {
     const s = JSON.parse(fs.readFileSync(settingsFile(), 'utf8'));
     state.discoverable = s.discoverable !== false;
     state.smoothMotion = s.smoothMotion === true;
+    state.allowTyping = s.allowTyping !== false;
   } catch { }
 }
 function saveSettings() {
-  try { fs.writeFileSync(settingsFile(), JSON.stringify({ discoverable: state.discoverable, smoothMotion: state.smoothMotion })); } catch { }
+  try { fs.writeFileSync(settingsFile(), JSON.stringify({ discoverable: state.discoverable, smoothMotion: state.smoothMotion, allowTyping: state.allowTyping })); } catch { }
 }
 
 // ---------- UI plumbing ----------
@@ -142,6 +145,8 @@ ipcMain.on('engine:event', (e, { name, data }) => {
     push();
   } else if (name === 'track-ended') {
     stopDisplay(data.id, { tellHeadset: true });
+  } else if (name === 'keys') {
+    if (state.allowTyping) typing.handle(data);   // never logged
   }
 });
 
@@ -171,6 +176,7 @@ function onSession(s) {
     if (current !== s) return;
     current = null;
     engine('stopAll').catch(() => { });
+    typing.stop();
     resetSessionState();
     state.notice = wasState === 'code' && /disconnected/.test(reason) ? 'The headset stopped asking to connect.' : reason;
     push();
@@ -284,6 +290,7 @@ const actions = {
   },
   setDiscoverable({ on }) { state.discoverable = !!on; saveSettings(); push(); },
   setSmoothMotion({ on }) { state.smoothMotion = !!on; saveSettings(); push(); },
+  setAllowTyping({ on }) { state.allowTyping = !!on; saveSettings(); if (!on) typing.stop(); push(); },
   dismissNotice() { state.notice = ''; push(); },
 };
 
@@ -368,6 +375,7 @@ if (!app.requestSingleInstanceLock()) {
     if (current) current.stop('The computer closed New World Desktop.');
     if (beacon) beacon.stop();
     if (server) server.close();
+    typing.stop();
   });
 }
 

@@ -1,16 +1,5 @@
 {
   "dependencies": {
-    "com.koremeta.realobjects": {
-      "version": "file:com.koremeta.realobjects",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.unity.xr.arfoundation": "6.0.0",
-        "com.unity.xr.core-utils": "2.3.0",
-        "com.unity.xr.hands": "1.4.0",
-        "com.unity.ugui": "2.0.0"
-      }
-    },
     "com.meta.xr.sdk.voice": {
       "version": "85.0.1",
       "depth": 0,
