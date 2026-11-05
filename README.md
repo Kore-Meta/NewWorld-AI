@@ -18,9 +18,7 @@ with a crown, but can't be entered.
 Orbit and Seoul also have a **Connect a computer** card: run the Windows companion app (`Tools/DesktopCompanion`, see
 its README) on a PC on the same Wi-Fi, enter the code the headset shows, and every display you pick stands round your
 seat as a curved screen at its real size. The screens go straight from the PC to the headset over the local network
-(WebRTC), never through the relay or any server. **Keyboard** on the screens' control bar opens the Quest's system
-keyboard and types into the window in focus on the PC (encrypted in the same WebRTC connection; the desktop app's
-"Let the headset type" switch turns it off).
+(WebRTC), never through the relay or any server. 
 
 Speech-to-text and the characters' voices use Meta's Voice SDK (Wit.ai) on the headset. What you say goes to a small
 relay server (`Tools/CatServer`), which asks Muse for the reply and the in-world actions (Muse tool calls), so the
