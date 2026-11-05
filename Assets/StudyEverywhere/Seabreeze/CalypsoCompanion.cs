@@ -120,6 +120,7 @@ namespace StudyEverywhere
             if (card && user) PlaceCard(true);
             AddCuesAndGuide();
             AddSounds();
+            MakeStateLine();
             if (card) { baseScale = card.localScale; StartCoroutine(Arrive()); }
             StartCoroutine(Greet());
             Debug.Log($"Calypso: voice {(Configured ? "configured" : "NOT configured (no Wit configuration)")}, relay {(string.IsNullOrEmpty(VoiceRelay.Url(serverUrl)) ? "not set" : "set")}.");
@@ -127,10 +128,41 @@ namespace StudyEverywhere
 
         bool Configured => voice && voice.RuntimeConfiguration != null && voice.RuntimeConfiguration.witConfiguration;
 
+        // Inside her orb, under her name: "Listening…" while someone is talking to her, "Thinking…" while her answer is on
+        // its way (the user, Nov 4: say it in words, not only the orb's colour). Made from her name's own text.
+        TMP_Text nameText, stateText;
+        Vector2 nameAt;
+        float addressedAt = -100, stateAlpha;
+        void MakeStateLine()
+        {
+            foreach (var t in (card ? card : transform).GetComponentsInChildren<TMP_Text>(true)) if (t.name == "Name") { nameText = t; break; }
+            if (!nameText) return;
+            nameAt = nameText.rectTransform.anchoredPosition;
+            stateText = Instantiate(nameText, nameText.transform.parent);
+            stateText.name = "State";
+            stateText.enableAutoSizing = false; stateText.fontSize = 19; stateText.font = (reply ? reply : nameText).font;
+            stateText.fontStyle = FontStyles.Bold; stateText.characterSpacing = 4;
+            stateText.rectTransform.anchoredPosition = nameAt + new Vector2(0, -24);
+            stateText.text = ""; stateText.alpha = 0;
+        }
+        void UpdateStateLine(bool talking)
+        {
+            if (!stateText) return;
+            bool listening = !busy && (Time.time - addressedAt < 1.5f || Time.time - askedAt < askWindow);
+            bool thinking = busy && !talking && Time.time >= actingUntil;
+            string want = listening ? Localization.Tr("Listening...") : thinking ? Localization.Tr("Thinking...") : null;
+            if (want != null && stateText.text != want) stateText.text = want;
+            stateAlpha = Mathf.MoveTowards(stateAlpha, want != null ? 1 : 0, Time.deltaTime * 5);
+            stateText.alpha = stateAlpha;
+            // her name lifts to make room while the line shows
+            nameText.rectTransform.anchoredPosition = nameAt + new Vector2(0, 16 * stateAlpha);
+        }
+
         void Update()
         {
             if (card && user) PlaceCard(false);
             bool talking = speaker && speaker.IsActive;
+            UpdateStateLine(talking);
             if (orb)
             {
                 orb.thinking = busy && !talking;
@@ -400,7 +432,7 @@ namespace StudyEverywhere
         void OnPartial(string text)
         {
             if (InWaitWindow(text)) return;
-            if (!busy && Addressed(text)) { if (orb) orb.Addressed(); Chime(); Show(Localization.Tr("Listening…"), "“" + text + "”"); }
+            if (!busy && Addressed(text)) { addressedAt = Time.time; if (orb) orb.Addressed(); Chime(); Show(Localization.Tr("Listening…"), "“" + text + "”"); }
         }
         void OnMicLevel(float level) { if (orb && !(speaker && speaker.IsActive)) orb.Heard(level); }
         void OnError(string error, string message) { Debug.LogWarning($"Calypso: {error} {message}"); retryAt = Time.time + 2; }

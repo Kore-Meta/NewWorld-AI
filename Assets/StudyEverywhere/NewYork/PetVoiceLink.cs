@@ -142,7 +142,7 @@ namespace StudyEverywhere
             try
             {
                 Pet.Attend(20);
-                if (Pet.Bubble) { Pet.Bubble.Listening(false); Pet.Bubble.Heard(text); }
+                if (Pet.Bubble) { Pet.Bubble.Listening(false); Pet.Bubble.Heard(text); Pet.Bubble.Thinking(true); }
                 VoiceRelay.Transcript($"{Who}: heard \"{text}\"");
                 if (lastExchange >= 0 && Time.time - lastExchange > ForgetAfter) history.Clear();
                 string url = VoiceRelay.Url(serverUrl), reply = null; string[] actions = null;
@@ -196,7 +196,7 @@ namespace StudyEverywhere
                     if (speaker.IsActive) { Debug.LogWarning($"{Who}'s voice: speech did not finish; stopping it."); speaker.Stop(); }
                 }
             }
-            finally { busy = false; }
+            finally { busy = false; if (Pet?.Bubble) Pet.Bubble.Thinking(false); }
         }
 
         void Remember(string role, string text)

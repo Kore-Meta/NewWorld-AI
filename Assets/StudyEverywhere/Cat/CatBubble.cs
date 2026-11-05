@@ -17,7 +17,7 @@ namespace StudyEverywhere
 
         string sayFull = "", heardFull = "";
         float sayShown, sayHold, heardHold, saysAlpha, heardAlpha;
-        bool listening, intro;
+        bool listening, thinking, intro;
 
         // The pet's introduction as the person arrives (the user, Oct 27: its name, how to talk to it, that it can be
         // turned off): held until the person starts talking to it (Listening, Heard) or it says something else.
@@ -31,7 +31,7 @@ namespace StudyEverywhere
 
         public void Say(string text)
         {
-            intro = false;
+            intro = false; thinking = false;
             sayFull = text ?? ""; sayShown = 0;
             sayHold = 2.5f + sayFull.Length / 14f;          // time to read after it is fully typed
             saysText.text = "";
@@ -44,10 +44,21 @@ namespace StudyEverywhere
             Fit(heard, heardText, heardFull, 440);
         }
 
+        // While the person talks, the heard bubble says "Listening..." (the user, Nov 4: in words, not only dots); while the
+        // reply is on its way, the pet's own bubble says "Thinking..." until it answers (Say).
+        static string Dots => new string('.', 1 + (int)(Time.time * 3) % 3).PadRight(3, ' ');
         public void Listening(bool on)
         {
             listening = on;
-            if (on) { EndIntro(); heardFull = ""; heardHold = 0; Fit(heard, heardText, "· · ·", 440); }
+            if (on) { EndIntro(); heardFull = ""; heardHold = 0; Fit(heard, heardText, Localization.Tr("Listening") + "...", 440); }
+        }
+
+        public void Thinking(bool on)
+        {
+            thinking = on;
+            if (!on) return;
+            EndIntro(); sayFull = ""; sayShown = 0;
+            Fit(says, saysText, Localization.Tr("Thinking") + "...", 520);
         }
 
         // Size the bubble to its text (up to maxWidth canvas units), keeping the padding.
@@ -78,12 +89,13 @@ namespace StudyEverywhere
                 saysText.text = sayFull.Substring(0, Mathf.FloorToInt(sayShown));
             }
             else sayHold -= dt;
-            float sayTarget = sayFull.Length > 0 && sayHold > 0 ? 1 : 0;
+            if (thinking) saysText.text = Localization.Tr("Thinking") + Dots;
+            float sayTarget = thinking || sayFull.Length > 0 && sayHold > 0 ? 1 : 0;
             saysAlpha = Mathf.MoveTowards(saysAlpha, sayTarget, dt * 4);
             saysGroup.alpha = saysAlpha; says.gameObject.SetActive(saysAlpha > 0);
 
             // What it heard: dots while listening, then the words.
-            if (listening) heardText.text = new string('·', 1 + (int)(Time.time * 3) % 3).Replace("·", "· ").Trim();
+            if (listening) heardText.text = Localization.Tr("Listening") + Dots;
             else heardHold -= dt;
             float heardTarget = listening || (heardFull.Length > 0 && heardHold > 0) ? 1 : 0;
             heardAlpha = Mathf.MoveTowards(heardAlpha, heardTarget, dt * 4);

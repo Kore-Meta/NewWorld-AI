@@ -10,7 +10,7 @@
 /[Tt]emp/
 /[Oo]bj/
 /[Bb]uild/
-/[Bb]uilds/
+/[Bb]uilds/*
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 *.log
@@ -207,3 +207,7 @@ Assets/StudyEverywhere/Resources/VoiceRelay.json.meta
 /Temp/
 /Logs/
 /UserSettings/
+
+# The release build and the desktop installer are committed (Git LFS), nothing else under Builds/ or dist/
+!/Builds/NewWorld-AI.apk
+!/Tools/DesktopCompanion/dist/NewWorldDesktop-Setup-1.1.0.exe

@@ -18,7 +18,7 @@ namespace StudyEverywhere.EditorTools
     {
         const string Scene = "Assets/Scenes/Seabreeze.unity", Root = "Assets/StudyEverywhere/Seabreeze";
         // 0.55 m out, 32 degrees to the right and 30 cm below the eyes: clear of the wrist menu and within reach.
-        const float Distance = .55f, Yaw = 32, Drop = .3f, Radius = .06f, Scale = .0005f;
+        const float Distance = .55f, Yaw = 14, Drop = .3f, Radius = .06f, Scale = .0005f;
         static readonly Vector2 Captions = new Vector2(640, 330);
         static TMP_FontAsset serif, sans;
 
