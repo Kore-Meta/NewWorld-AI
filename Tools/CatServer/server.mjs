@@ -173,7 +173,8 @@ const PETS = {
       tool("yawn", "A big cub yawn."),
       tool("stretch", "A long stretch, front then back."),
       tool("mew", "A small, soft mew."),
-      tool("weather", "Look up the weather now, today and tomorrow (Open-Meteo). Leave city out for Seoul, where your café is.", { city: { type: "string", description: "A city the person asked about; leave out for Seoul." } }),
+      // (strict tools must require every argument: an empty city is Seoul)
+      tool("weather", "Look up the weather now, today and tomorrow (Open-Meteo). City empty for Seoul, where your café is.", { city: { type: "string", description: "A city the person asked about, or an empty string for Seoul." } }, ["city"]),
       tool("news", "Read today's latest headlines from Yonhap News Agency (Korea's national news agency, in English)."),
     ],
   },
